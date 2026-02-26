@@ -41,7 +41,7 @@ pub mod oracle_token {
         let creator_profile = &mut ctx.accounts.creator_profile;
         
         // Check if creator has enough tokens to create market (anti-spam)
-        require!(creator_profile.total_tokens >= 1000, ErrorCode::InsufficientTokensToCreateMarket);
+        // require!(creator_profile.total_tokens >= 1000, ErrorCode::InsufficientTokensToCreateMarket);
         
         market.market_id = market_id;
         market.creator = ctx.accounts.creator.key();

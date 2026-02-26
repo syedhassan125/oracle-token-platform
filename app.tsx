@@ -6,6 +6,7 @@ import { WalletModalProvider, WalletMultiButton } from '@solana/wallet-adapter-r
 import { clusterApiUrl, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import * as anchor from '@coral-xyz/anchor';
 import '@solana/wallet-adapter-react-ui/styles.css';
+import { TokenBalance } from './TokenBalance';
 
 // Program ID
 const PROGRAM_ID = new PublicKey("HJkUBA1W9Dcd83WC7CiCXpdZRc3iHQy7Pwp355jGWmNj");
@@ -176,19 +177,182 @@ const MOCK_COMMENTS = [
   { id: 4, username: "MarketMaven", avatar: "📈", comment: "Stock-to-flow model suggests $120K+ is possible by year-end.", time: "2 days ago", likes: 31 },
 ];
 
+
+
+const SplashScreen: FC<{ onComplete: () => void }> = ({ onComplete }) => {
+  const [count, setCount] = useState(0);
+  const [phase, setPhase] = useState<'counting' | 'reveal' | 'exit'>('counting');
+  const [glitch, setGlitch] = useState(false);
+
+  useEffect(() => {
+    let start = 0;
+    const duration = 3000;
+    const increment = 100 / (duration / 16);
+    const counter = setInterval(() => {
+      start += increment;
+      if (start >= 100) {
+        setCount(100);
+        clearInterval(counter);
+        setGlitch(true);
+        setTimeout(() => setGlitch(false), 400);
+        setPhase('reveal');
+        setTimeout(() => { setPhase('exit'); setTimeout(onComplete, 1000); }, 1200);
+      } else {
+        setCount(Math.floor(start));
+        if (Math.random() < 0.05) { setGlitch(true); setTimeout(() => setGlitch(false), 80); }
+      }
+    }, 16);
+    return () => clearInterval(counter);
+  }, [onComplete]);
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: '#000005', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', transition: phase === 'exit' ? 'opacity 1s ease' : 'none', opacity: phase === 'exit' ? 0 : 1, overflow: 'hidden', fontFamily: 'monospace' }}>
+      
+      <style>{`
+        @keyframes scanline {
+          0% { transform: translateY(-100%); }
+          100% { transform: translateY(100vh); }
+        }
+        @keyframes flicker {
+          0%, 100% { opacity: 1; } 92% { opacity: 1; } 93% { opacity: 0.4; } 95% { opacity: 1; } 97% { opacity: 0.6; } 98% { opacity: 1; }
+        }
+        @keyframes gridPulse {
+          0%, 100% { opacity: 0.03; } 50% { opacity: 0.07; }
+        }
+        @keyframes orbPulse {
+          0%, 100% { transform: scale(1); opacity: 0.6; } 50% { transform: scale(1.2); opacity: 1; }
+        }
+        @keyframes float {
+          0%, 100% { transform: translateY(0px) rotate(0deg); } 50% { transform: translateY(-15px) rotate(2deg); }
+        }
+        @keyframes glitchAnim {
+          0% { clip-path: inset(0 0 95% 0); transform: translate(-4px, 0); }
+          10% { clip-path: inset(30% 0 50% 0); transform: translate(4px, 0); }
+          20% { clip-path: inset(60% 0 20% 0); transform: translate(-2px, 0); }
+          30% { clip-path: inset(10% 0 80% 0); transform: translate(2px, 0); }
+          40% { clip-path: inset(80% 0 5% 0); transform: translate(-4px, 0); }
+          100% { clip-path: inset(0 0 0 0); transform: translate(0, 0); }
+        }
+        @keyframes ringExpand {
+          0% { transform: scale(0.8); opacity: 0.8; }
+          100% { transform: scale(2); opacity: 0; }
+        }
+        @keyframes dataStream {
+          0% { transform: translateY(0); opacity: 1; }
+          100% { transform: translateY(-100px); opacity: 0; }
+        }
+        .glitch-text::before {
+          content: attr(data-text);
+          position: absolute;
+          left: 0; top: 0; right: 0;
+          color: #0ff;
+          animation: glitchAnim 0.15s infinite;
+          opacity: 0.7;
+        }
+        .glitch-text::after {
+          content: attr(data-text);
+          position: absolute;
+          left: 0; top: 0; right: 0;
+          color: #f0f;
+          animation: glitchAnim 0.15s infinite reverse;
+          opacity: 0.5;
+        }
+      `}</style>
+
+      {/* Grid background */}
+      <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(139,92,246,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(139,92,246,0.05) 1px, transparent 1px)', backgroundSize: '60px 60px', animation: 'gridPulse 4s ease-in-out infinite' }} />
+
+      {/* Horizon glow */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '300px', background: 'linear-gradient(to top, rgba(139,92,246,0.15), transparent)', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', bottom: '0px', left: 0, right: 0, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(139,92,246,0.8), rgba(236,72,153,0.8), transparent)', boxShadow: '0 0 20px rgba(139,92,246,0.5)' }} />
+
+      {/* Scanline effect */}
+      <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px)', pointerEvents: 'none', zIndex: 10 }} />
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'linear-gradient(90deg, transparent, rgba(139,92,246,0.6), transparent)', animation: 'scanline 4s linear infinite', zIndex: 11 }} />
+
+      {/* Corner decorations */}
+      {[{top:20,left:20}, {top:20,right:20}, {bottom:20,left:20}, {bottom:20,right:20}].map((pos, i) => (
+        <div key={i} style={{ position: 'absolute', ...pos, width: '40px', height: '40px', borderTop: i < 2 ? '1px solid rgba(139,92,246,0.5)' : 'none', borderBottom: i >= 2 ? '1px solid rgba(139,92,246,0.5)' : 'none', borderLeft: i % 2 === 0 ? '1px solid rgba(139,92,246,0.5)' : 'none', borderRight: i % 2 === 1 ? '1px solid rgba(139,92,246,0.5)' : 'none' }} />
+      ))}
+
+      {/* Expanding rings */}
+      {phase === 'reveal' && [0,1,2].map(i => (
+        <div key={i} style={{ position: 'absolute', width: '300px', height: '300px', borderRadius: '50%', border: '1px solid rgba(139,92,246,0.4)', animation: `ringExpand 1.5s ease-out ${i * 0.3}s forwards` }} />
+      ))}
+
+      {/* Ambient orbs */}
+      <div style={{ position: 'absolute', width: '500px', height: '500px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(139,92,246,0.12) 0%, transparent 70%)', animation: 'orbPulse 3s ease-in-out infinite', filter: 'blur(30px)' }} />
+      <div style={{ position: 'absolute', width: '300px', height: '300px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(236,72,153,0.08) 0%, transparent 70%)', animation: 'orbPulse 4s ease-in-out infinite reverse', filter: 'blur(20px)', transform: 'translate(100px, 50px)' }} />
+
+      {/* Status lines top */}
+      <div style={{ position: 'absolute', top: '40px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '24px', fontSize: '9px', letterSpacing: '3px', color: 'rgba(139,92,246,0.5)' }}>
+        <span>SOLANA_DEVNET</span>
+        <span style={{ color: 'rgba(255,255,255,0.2)' }}>|</span>
+        <span>SYS_INIT</span>
+        <span style={{ color: 'rgba(255,255,255,0.2)' }}>|</span>
+        <span style={{ color: 'rgba(0,255,200,0.6)' }}>● ONLINE</span>
+      </div>
+
+      {/* Main crystal ball */}
+      <div style={{ fontSize: '90px', marginBottom: '24px', animation: 'float 4s ease-in-out infinite', filter: `drop-shadow(0 0 40px rgba(139,92,246,0.9)) drop-shadow(0 0 80px rgba(139,92,246,0.4))`, position: 'relative', zIndex: 5 }}>🔮</div>
+
+      {/* Oracle Token title with glitch */}
+      <div style={{ position: 'relative', marginBottom: '8px' }} className={glitch ? 'glitch-text' : ''} data-text="ORACLE TOKEN">
+        <div style={{ fontSize: '13px', letterSpacing: '8px', color: glitch ? '#0ff' : 'rgba(255,255,255,0.9)', textTransform: 'uppercase', fontWeight: 300, transition: 'color 0.1s', textShadow: phase === 'reveal' ? '0 0 20px rgba(139,92,246,1)' : 'none' }}>
+          ORACLE TOKEN
+        </div>
+      </div>
+
+      <div style={{ fontSize: '9px', letterSpacing: '4px', color: 'rgba(139,92,246,0.5)', marginBottom: '52px', textTransform: 'uppercase' }}>
+        PREDICTION MARKETS // SOLANA
+      </div>
+
+      {/* Big counter */}
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+        <div style={{ fontSize: '96px', fontWeight: 100, color: glitch ? '#0ff' : 'white', letterSpacing: '-6px', lineHeight: 1, textShadow: phase === 'reveal' ? '0 0 30px rgba(139,92,246,1), 0 0 60px rgba(139,92,246,0.5)' : '0 0 10px rgba(255,255,255,0.2)', transition: 'text-shadow 0.3s, color 0.1s', fontVariantNumeric: 'tabular-nums' }}>
+          {String(count).padStart(3, '0')}
+        </div>
+        <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', letterSpacing: '2px', marginBottom: '8px' }}>%</div>
+      </div>
+
+      {/* Progress bar */}
+      <div style={{ width: '280px', height: '2px', background: 'rgba(255,255,255,0.05)', marginTop: '20px', position: 'relative', overflow: 'visible' }}>
+        <div style={{ height: '100%', width: count + '%', background: 'linear-gradient(90deg, #8b5cf6, #ec4899)', transition: 'width 0.016s linear', boxShadow: '0 0 12px rgba(139,92,246,0.8), 0 0 24px rgba(236,72,153,0.4)', position: 'relative' }}>
+          <div style={{ position: 'absolute', right: 0, top: '-3px', width: '8px', height: '8px', borderRadius: '50%', background: '#ec4899', boxShadow: '0 0 8px #ec4899' }} />
+        </div>
+      </div>
+
+      {/* Loading text */}
+      <div style={{ marginTop: '20px', fontSize: '9px', letterSpacing: '3px', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase' }}>
+        {count < 30 ? 'INITIALIZING BLOCKCHAIN' : count < 60 ? 'LOADING MARKETS' : count < 90 ? 'SYNCING ORACLE DATA' : 'READY'}
+      </div>
+
+      {/* Bottom status */}
+      <div style={{ position: 'absolute', bottom: '40px', left: '50%', transform: 'translateX(-50%)', fontSize: '9px', letterSpacing: '2px', color: 'rgba(255,255,255,0.15)' }}>
+        PREDICT EVERYTHING
+      </div>
+    </div>
+  );
+};
+
 const OracleTokenApp: FC = () => {
   const network = WalletAdapterNetwork.Devnet;
   const endpoint = useMemo(() => clusterApiUrl(network), [network]);
   const wallets = useMemo(() => [new PhantomWalletAdapter(), new SolflareWalletAdapter({ network })], [network]);
 
+  const [showSplash, setShowSplash] = useState(true);
+
   return (
-    <ConnectionProvider endpoint={endpoint}>
-      <WalletProvider wallets={wallets} autoConnect>
-        <WalletModalProvider>
-          <MainApp />
-        </WalletModalProvider>
-      </WalletProvider>
-    </ConnectionProvider>
+    <>
+      {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
+      <ConnectionProvider endpoint={endpoint}>
+        <WalletProvider wallets={wallets} autoConnect>
+          <WalletModalProvider>
+            <MainApp />
+          </WalletModalProvider>
+        </WalletProvider>
+      </ConnectionProvider>
+    </>
   );
 };
 
@@ -229,71 +393,66 @@ const MainApp: FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#0a1929] via-[#0d2137] to-[#0a1929]">
       {/* Header */}
-      <header className="border-b border-gray-800 bg-[#0a1929]/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-8">
-              <h1 
-                onClick={() => setCurrentPage('home')}
-                className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent cursor-pointer"
-              >
-                🔮 Oracle Token
-              </h1>
-              <nav className="hidden md:flex space-x-6 text-sm">
-                <button 
-                  onClick={() => setCurrentPage('home')}
-                  className={`font-medium transition ${currentPage === 'home' ? 'text-purple-400' : 'text-gray-400 hover:text-white'}`}
-                >
-                  Trending
-                </button>
-                <button
-                  onClick={() => setCurrentPage('all-markets')}
-                  className={`font-medium transition ${currentPage === 'all-markets' ? 'text-purple-400' : 'text-gray-400 hover:text-white'}`}
-                >
-                  Markets
-                </button>
-                <button
-                  onClick={() => setCurrentPage('leaderboard')}
-                  className={`font-medium transition ${currentPage === 'leaderboard' ? 'text-purple-400' : 'text-gray-400 hover:text-white'}`}
-                >
-                  Leaderboard
-                </button>
-                <button
-                  onClick={() => setCurrentPage('predictions')}
-                  className={`font-medium transition ${currentPage === 'predictions' ? 'text-purple-400' : 'text-gray-400 hover:text-white'}`}
-                >
-                  My Predictions
-                </button>
-              </nav>
+      <header style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(10,10,10,0.95)', backdropFilter: 'blur(12px)', position: 'sticky', top: 0, zIndex: 50, fontFamily: "'DM Sans', sans-serif" }}>
+        <style>{`
+          .nav-btn { transition: color 0.15s ease; }
+          .nav-btn:hover { color: rgba(255,255,255,0.8) !important; }
+          .nav-btn.active { color: rgba(255,255,255,0.9) !important; }
+          .nav-btn.active::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 1px; background: rgba(255,255,255,0.6); }
+          .create-btn { transition: all 0.15s ease; }
+          .create-btn:hover { background: rgba(255,255,255,0.08) !important; border-color: rgba(255,255,255,0.15) !important; color: rgba(255,255,255,0.8) !important; }
+          .wallet-btn-wrap .wallet-adapter-button { background: rgba(255,255,255,0.06) !important; border: 1px solid rgba(255,255,255,0.1) !important; border-radius: 7px !important; font-family: 'DM Mono', monospace !important; font-size: 11px !important; letter-spacing: 0.5px !important; color: rgba(255,255,255,0.6) !important; padding: 8px 14px !important; height: auto !important; font-weight: 400 !important; }
+          .wallet-btn-wrap .wallet-adapter-button:hover { background: rgba(255,255,255,0.1) !important; color: rgba(255,255,255,0.9) !important; }
+          .token-bal { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 7px; padding: 6px 12px; display: flex; align-items: center; gap: 7px; }
+        `}</style>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 32px', height: '52px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          
+          {/* Logo + nav */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
+            <div onClick={() => setCurrentPage('home')} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+              <span style={{ fontSize: '16px' }}>🔮</span>
+              <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '14px', fontWeight: 500, color: 'rgba(255,255,255,0.85)', letterSpacing: '-0.2px' }}>Oracle Token</span>
             </div>
-            
-            <div className="flex items-center space-x-4">
-              {connected && canCreateMarket && (
+
+            <div style={{ width: '1px', height: '16px', background: 'rgba(255,255,255,0.08)' }} />
+
+            <nav style={{ display: 'flex', alignItems: 'stretch', gap: '0', height: '52px' }}>
+              {[
+                { label: 'Trending', page: 'home' },
+                { label: 'Markets', page: 'all-markets' },
+                { label: 'Leaderboard', page: 'leaderboard' },
+                { label: 'My Predictions', page: 'predictions' },
+              ].map(({ label, page }) => (
                 <button
-                  onClick={() => setCurrentPage('create')}
-                  className="hidden md:flex items-center space-x-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold px-4 py-2 rounded-lg transition shadow-lg"
+                  key={page}
+                  onClick={() => setCurrentPage(page as any)}
+                  className={`nav-btn ${currentPage === page ? 'active' : ''}`}
+                  style={{ position: 'relative', background: 'none', border: 'none', padding: '0 14px', fontSize: '13px', color: currentPage === page ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.35)', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", fontWeight: 400 }}
                 >
-                  <span>➕</span>
-                  <span>Create Market</span>
+                  {label}
                 </button>
-              )}
-              {connected && (
-                <button
-                  onClick={() => setShowProfileModal(true)}
-                  className="hidden md:flex items-center space-x-4 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg px-4 py-2 transition cursor-pointer"
-                >
-                  <div className="text-right">
-                    <div className="text-xs text-gray-400">Oracle Tokens</div>
-                    <div className="text-sm font-bold text-purple-400">{oracleBalance.toLocaleString()}</div>
-                  </div>
-                  <div className="w-px h-8 bg-gray-700"></div>
-                  <div className="text-right">
-                    <div className="text-xs text-gray-400">Tier</div>
-                    <div className="text-sm font-bold text-yellow-400">{userTier}</div>
-                  </div>
-                </button>
-              )}
-              <WalletMultiButton className="!bg-gradient-to-r !from-purple-600 !to-pink-600 hover:!from-purple-700 hover:!to-pink-700 !rounded-lg !transition-all" />
+              ))}
+            </nav>
+          </div>
+
+          {/* Right side */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {connected && canCreateMarket && (
+              <button onClick={() => setCurrentPage('create' as any)} className="create-btn" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '7px', padding: '7px 12px', color: 'rgba(255,255,255,0.45)', fontSize: '12px', fontFamily: "'DM Sans', sans-serif", cursor: 'pointer' }}>
+                <span style={{ fontSize: '11px' }}>+</span>
+                <span>Create Market</span>
+              </button>
+            )}
+
+            <div className="token-bal">
+              <span style={{ fontSize: '14px' }}>🔮</span>
+              <div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', color: 'rgba(255,255,255,0.6)', letterSpacing: '-0.2px', lineHeight: 1.2 }}><TokenBalance /></div>
+              </div>
+            </div>
+
+            <div className="wallet-btn-wrap">
+              <WalletMultiButton />
             </div>
           </div>
         </div>
@@ -301,58 +460,150 @@ const MainApp: FC = () => {
 
       {/* Main Content */}
       {currentPage === 'home' && (
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          {/* Featured Markets Hero */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            {FEATURED_MARKETS.map((market, idx) => (
-              <div 
-                key={idx} 
-                onClick={() => handleMarketClick(market.id)}
-                className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${market.color} p-6 cursor-pointer transform hover:scale-105 transition-all duration-300 shadow-2xl`}
-              >
-                <div className="text-6xl mb-3 opacity-90">{market.image}</div>
-                <h3 className="text-xl font-bold text-white mb-2">{market.title}</h3>
-                <p className="text-white/80 text-sm mb-4">{market.description}</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-white/90 text-sm font-medium">{market.volume} Vol</span>
-                  <span className="bg-white/20 backdrop-blur px-3 py-1 rounded-full text-white font-bold text-sm">{market.yesPercent}%</span>
+        <div style={{ fontFamily: "'SF Mono', 'Fira Code', monospace" }}>
+          <style>{`
+            @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@300;400;500&display=swap');
+            .market-row { transition: background 0.15s ease, border-color 0.15s ease; }
+            .market-row:hover { background: rgba(255,255,255,0.03) !important; border-color: rgba(255,255,255,0.12) !important; }
+            .cat-pill { transition: all 0.15s ease; }
+            .cat-pill:hover { background: rgba(255,255,255,0.06) !important; color: white !important; }
+            .cat-pill.active { background: rgba(255,255,255,0.1) !important; color: white !important; border-color: rgba(255,255,255,0.2) !important; }
+            .yes-btn { transition: all 0.15s ease; }
+            .yes-btn:hover { background: rgba(34,197,94,0.15) !important; border-color: rgba(34,197,94,0.4) !important; color: rgb(34,197,94) !important; }
+            .no-btn { transition: all 0.15s ease; }
+            .no-btn:hover { background: rgba(249,115,22,0.15) !important; border-color: rgba(249,115,22,0.4) !important; color: rgb(249,115,22) !important; }
+            .featured-card { transition: all 0.2s ease; border: 1px solid rgba(255,255,255,0.06); }
+            .featured-card:hover { border-color: rgba(255,255,255,0.14) !important; transform: translateY(-2px); }
+            .view-all-btn { transition: all 0.15s ease; }
+            .view-all-btn:hover { background: rgba(255,255,255,0.06) !important; border-color: rgba(255,255,255,0.15) !important; }
+          `}</style>
+
+          {/* Hero section */}
+          <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '48px 0 40px' }}>
+            <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 32px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '40px' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(34,197,94,0.8)', boxShadow: '0 0 8px rgba(34,197,94,0.6)' }} />
+                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', letterSpacing: '2px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase' }}>Live Markets</span>
+                  </div>
+                  <h1 style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '38px', fontWeight: 300, color: 'white', letterSpacing: '-1.5px', lineHeight: 1.1, marginBottom: '12px' }}>
+                    Trending <span style={{ color: 'rgba(255,255,255,0.3)' }}>predictions</span>
+                  </h1>
+                  <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '14px', color: 'rgba(255,255,255,0.35)', fontWeight: 300, letterSpacing: '0.1px' }}>
+                    {SAMPLE_MARKETS.length} active markets · Updated in real time
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: '24px', paddingTop: '8px' }}>
+                  {[{ label: 'Total Volume', value: '$18.2M', color: 'white' }, { label: 'Active Markets', value: SAMPLE_MARKETS.length.toString(), color: 'white' }, { label: 'Participants', value: '24.8K', color: 'white' }].map((stat, i) => (
+                    <div key={i} style={{ textAlign: 'right' }}>
+                      <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '20px', fontWeight: 500, color: stat.color, letterSpacing: '-0.5px' }}>{stat.value}</div>
+                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.25)', letterSpacing: '1px', textTransform: 'uppercase', marginTop: '2px' }}>{stat.label}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
+
+              {/* Featured cards — horizontal strip */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+                {FEATURED_MARKETS.map((market, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => handleMarketClick(market.id)}
+                    className="featured-card"
+                    style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '10px', padding: '20px', cursor: 'pointer', position: 'relative', overflow: 'hidden' }}
+                  >
+                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: `linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)` }} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                      <span style={{ fontSize: '24px' }}>{market.image}</span>
+                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '18px', fontWeight: 500, color: market.yesPercent > 50 ? 'rgba(34,197,94,0.9)' : 'rgba(255,255,255,0.5)', letterSpacing: '-0.5px' }}>{market.yesPercent}%</div>
+                    </div>
+                    <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.85)', lineHeight: 1.4, marginBottom: '12px', letterSpacing: '-0.1px' }}>{market.title}</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.25)', letterSpacing: '0.5px' }}>{market.volume} vol</span>
+                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.5px' }}>{market.category}</span>
+                    </div>
+                    {/* Yes progress bar */}
+                    <div style={{ marginTop: '14px', height: '2px', background: 'rgba(255,255,255,0.06)', borderRadius: '1px', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: market.yesPercent + '%', background: market.yesPercent > 50 ? 'rgba(34,197,94,0.6)' : 'rgba(249,115,22,0.6)', borderRadius: '1px' }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
-          {/* Category Filter */}
-          <div className="flex items-center space-x-3 mb-6 overflow-x-auto pb-2">
-            {CATEGORIES.map(cat => (
+          {/* Markets table section */}
+          <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 32px 0' }}>
+            {/* Filter row */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                {CATEGORIES.map(cat => (
+                  <button
+                    key={cat.name}
+                    onClick={() => setSelectedCategory(cat.name)}
+                    className={`cat-pill ${selectedCategory === cat.name ? 'active' : ''}`}
+                    style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '12px', fontWeight: 400, padding: '5px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.07)', background: selectedCategory === cat.name ? 'rgba(255,255,255,0.1)' : 'transparent', color: selectedCategory === cat.name ? 'white' : 'rgba(255,255,255,0.35)', cursor: 'pointer', letterSpacing: '0.1px' }}
+                  >
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
+              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.5px' }}>{filteredMarkets.length} markets</span>
+            </div>
+
+            {/* Table header */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 90px 160px', gap: '16px', padding: '8px 16px', marginBottom: '4px' }}>
+              {['Market', 'Odds', 'Volume', 'Ends', ''].map((h, i) => (
+                <div key={i} style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.2)', letterSpacing: '1.5px', textTransform: 'uppercase', textAlign: i > 0 ? 'right' : 'left' }}>{h}</div>
+              ))}
+            </div>
+
+            {/* Market rows */}
+            <div style={{ border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', overflow: 'hidden' }}>
+              {filteredMarkets.slice(0, 6).map((market, idx) => (
+                <div
+                  key={market.id}
+                  className="market-row"
+                  style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 90px 160px', gap: '16px', padding: '14px 16px', borderBottom: idx < 5 ? '1px solid rgba(255,255,255,0.04)' : 'none', alignItems: 'center', cursor: 'pointer', background: 'transparent' }}
+                  onClick={() => handleMarketClick(market.id)}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: market.yesPercent > 60 ? 'rgba(34,197,94,0.7)' : market.yesPercent < 40 ? 'rgba(249,115,22,0.7)' : 'rgba(255,255,255,0.3)', flexShrink: 0 }} />
+                    <div>
+                      <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '13px', fontWeight: 400, color: 'rgba(255,255,255,0.85)', letterSpacing: '-0.1px', marginBottom: '2px' }}>{market.question}</div>
+                      <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.5px' }}>{market.participants.toLocaleString()} participants · {market.category}</div>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right', fontFamily: "'DM Mono', monospace", fontSize: '13px', fontWeight: 500, color: market.yesPercent > 50 ? 'rgba(34,197,94,0.8)' : 'rgba(249,115,22,0.8)', letterSpacing: '-0.3px' }}>{market.yesPercent}%</div>
+                  <div style={{ textAlign: 'right', fontFamily: "'DM Mono', monospace", fontSize: '12px', color: 'rgba(255,255,255,0.4)', letterSpacing: '-0.2px' }}>{market.volume}</div>
+                  <div style={{ textAlign: 'right', fontFamily: "'DM Mono', monospace", fontSize: '11px', color: 'rgba(255,255,255,0.25)', letterSpacing: '0.2px' }}>{market.endDate}</div>
+                  <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
+                    <button
+                      className="yes-btn"
+                      onClick={(e) => { e.stopPropagation(); handleMarketClick(market.id); }}
+                      style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', fontWeight: 500, padding: '5px 14px', borderRadius: '5px', border: '1px solid rgba(34,197,94,0.2)', background: 'rgba(34,197,94,0.06)', color: 'rgba(34,197,94,0.7)', cursor: 'pointer', letterSpacing: '0.5px' }}
+                    >YES</button>
+                    <button
+                      className="no-btn"
+                      onClick={(e) => { e.stopPropagation(); handleMarketClick(market.id); }}
+                      style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', fontWeight: 500, padding: '5px 14px', borderRadius: '5px', border: '1px solid rgba(249,115,22,0.2)', background: 'rgba(249,115,22,0.06)', color: 'rgba(249,115,22,0.7)', cursor: 'pointer', letterSpacing: '0.5px' }}
+                    >NO</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* View all */}
+            <div style={{ padding: '20px 0 40px', textAlign: 'center' }}>
               <button
-                key={cat.name}
-                onClick={() => setSelectedCategory(cat.name)}
-                className={`px-6 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all ${
-                  selectedCategory === cat.name
-                    ? 'bg-gradient-to-r ' + cat.color + ' text-white shadow-lg scale-105'
-                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                }`}
+                onClick={() => setCurrentPage('all-markets')}
+                className="view-all-btn"
+                style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '13px', fontWeight: 400, padding: '10px 28px', borderRadius: '7px', border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', letterSpacing: '0.1px' }}
               >
-                {cat.name}
+                View all {SAMPLE_MARKETS.length} markets →
               </button>
-            ))}
-          </div>
-
-          {/* Markets Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredMarkets.slice(0, 6).map(market => (
-              <MarketCard key={market.id} market={market} onMarketClick={handleMarketClick} />
-            ))}
-          </div>
-
-          {/* View All Markets Button */}
-          <div className="text-center mt-8">
-            <button
-              onClick={() => setCurrentPage('all-markets')}
-              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold px-8 py-4 rounded-lg transition shadow-lg text-lg"
-            >
-              View All {SAMPLE_MARKETS.length} Markets →
-            </button>
+            </div>
           </div>
         </div>
       )}
@@ -385,132 +636,137 @@ const AllMarketsPage: FC<{ onMarketClick: (id: number) => void }> = ({ onMarketC
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [sortBy, setSortBy] = useState<'trending' | 'volume' | 'ending' | 'new'>('trending');
 
-  // Combine featured and sample markets
   const allMarkets = [...FEATURED_MARKETS.map(m => ({ ...m, isFeatured: true })), ...SAMPLE_MARKETS.map(m => ({ ...m, isFeatured: false }))];
 
-  // Filter
   const filteredMarkets = allMarkets.filter(market => {
     const matchesSearch = market.question.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'All' || market.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
-  // Sort
   const sortedMarkets = [...filteredMarkets].sort((a, b) => {
-    if (sortBy === 'volume') {
-      const volA = parseFloat(a.volume.replace(/[$MK]/g, ''));
-      const volB = parseFloat(b.volume.replace(/[$MK]/g, ''));
-      return volB - volA;
-    } else if (sortBy === 'ending') {
-      return new Date(a.endDate).getTime() - new Date(b.endDate).getTime();
-    } else if (sortBy === 'new') {
-      return b.id - a.id;
-    }
-    // trending (default) - by participants
+    if (sortBy === 'volume') { const volA = parseFloat(a.volume.replace(/[$MK]/g, '')); const volB = parseFloat(b.volume.replace(/[$MK]/g, '')); return volB - volA; }
+    else if (sortBy === 'ending') { return new Date(a.endDate).getTime() - new Date(b.endDate).getTime(); }
+    else if (sortBy === 'new') { return b.id - a.id; }
     return b.participants - a.participants;
   });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-white mb-2">📊 All Markets</h1>
-        <p className="text-gray-400">Browse and search {allMarkets.length} prediction markets</p>
+    <div style={{ fontFamily: "'DM Sans', sans-serif", minHeight: '100vh' }}>
+      <style>{`
+        .am-row { transition: background 0.15s ease, border-color 0.15s ease; }
+        .am-row:hover { background: rgba(255,255,255,0.03) !important; }
+        .am-yes:hover { background: rgba(34,197,94,0.12) !important; border-color: rgba(34,197,94,0.35) !important; color: rgb(34,197,94) !important; }
+        .am-no:hover { background: rgba(249,115,22,0.12) !important; border-color: rgba(249,115,22,0.35) !important; color: rgb(249,115,22) !important; }
+        .am-cat:hover { background: rgba(255,255,255,0.06) !important; color: rgba(255,255,255,0.8) !important; }
+        .am-search:focus { border-color: rgba(255,255,255,0.2) !important; outline: none; }
+        .am-select:focus { border-color: rgba(255,255,255,0.2) !important; outline: none; }
+        .am-sort:hover { background: rgba(255,255,255,0.06) !important; color: rgba(255,255,255,0.8) !important; }
+      `}</style>
+
+      {/* Page header */}
+      <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '40px 0 32px' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 32px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(34,197,94,0.8)', boxShadow: '0 0 8px rgba(34,197,94,0.5)' }} />
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', letterSpacing: '2px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase' }}>All Markets</span>
+              </div>
+              <h1 style={{ fontSize: '34px', fontWeight: 300, color: 'white', letterSpacing: '-1.5px', lineHeight: 1.1, marginBottom: '8px' }}>
+                Browse <span style={{ color: 'rgba(255,255,255,0.3)' }}>predictions</span>
+              </h1>
+              <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.3)', fontWeight: 300 }}>
+                {allMarkets.length} markets across {CATEGORIES.length - 1} categories
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              {(['trending', 'volume', 'ending', 'new'] as const).map(s => (
+                <button key={s} onClick={() => setSortBy(s)} className="am-sort" style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', padding: '6px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.07)', background: sortBy === s ? 'rgba(255,255,255,0.08)' : 'transparent', color: sortBy === s ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.25)', cursor: 'pointer', letterSpacing: '0.5px', textTransform: 'uppercase', transition: 'all 0.15s' }}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Search and Filters */}
-      <div className="bg-gray-800/50 backdrop-blur border border-gray-700 rounded-2xl p-6 mb-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          {/* Search */}
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-300 mb-2">Search Markets</label>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px 32px' }}>
+        {/* Search + category row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+          <div style={{ position: 'relative', flex: 1, maxWidth: '320px' }}>
+            <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.2)', fontSize: '13px' }}>⌕</span>
             <input
               type="text"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by question..."
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              onChange={e => setSearchTerm(e.target.value)}
+              placeholder="Search markets..."
+              className="am-search"
+              style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '7px', padding: '8px 12px 8px 32px', color: 'white', fontSize: '13px', fontFamily: "'DM Sans', sans-serif", boxSizing: 'border-box' as const }}
             />
           </div>
-
-          {/* Sort */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Sort By</label>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-            >
-              <option value="trending">🔥 Trending</option>
-              <option value="volume">💰 Highest Volume</option>
-              <option value="ending">⏰ Ending Soon</option>
-              <option value="new">🆕 Newest</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Category Filter */}
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">Category</label>
-          <div className="flex items-center space-x-3 overflow-x-auto pb-2">
+          <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.07)' }} />
+          <div style={{ display: 'flex', gap: '4px' }}>
             {CATEGORIES.map(cat => (
-              <button
-                key={cat.name}
-                onClick={() => setSelectedCategory(cat.name)}
-                className={`px-6 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all ${
-                  selectedCategory === cat.name
-                    ? 'bg-gradient-to-r ' + cat.color + ' text-white shadow-lg'
-                    : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
-                }`}
-              >
+              <button key={cat.name} onClick={() => setSelectedCategory(cat.name)} className="am-cat" style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.07)', background: selectedCategory === cat.name ? 'rgba(255,255,255,0.1)' : 'transparent', color: selectedCategory === cat.name ? 'white' : 'rgba(255,255,255,0.3)', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", transition: 'all 0.15s', whiteSpace: 'nowrap' as const }}>
                 {cat.name}
               </button>
             ))}
           </div>
+          {searchTerm && (
+            <button onClick={() => setSearchTerm('')} style={{ fontSize: '12px', color: 'rgba(139,92,246,0.7)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>
+              Clear
+            </button>
+          )}
+          <span style={{ marginLeft: 'auto', fontFamily: "'DM Mono', monospace", fontSize: '11px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.5px' }}>
+            {sortedMarkets.length} results
+          </span>
         </div>
-      </div>
 
-      {/* Results Count */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="text-gray-300">
-          Showing <span className="text-white font-bold">{sortedMarkets.length}</span> of <span className="text-white font-bold">{allMarkets.length}</span> markets
-        </div>
-        {searchTerm && (
-          <button
-            onClick={() => setSearchTerm('')}
-            className="text-purple-400 hover:text-purple-300 text-sm transition"
-          >
-            Clear search
-          </button>
-        )}
-      </div>
-
-      {/* Markets Grid */}
-      {sortedMarkets.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {sortedMarkets.map(market => (
-            <MarketCard key={market.id} market={market} onMarketClick={onMarketClick} featured={market.isFeatured} />
+        {/* Table header */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 90px 160px', gap: '16px', padding: '8px 16px', marginBottom: '4px' }}>
+          {['Market', 'Odds', 'Volume', 'Ends', ''].map((h, i) => (
+            <div key={i} style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.2)', letterSpacing: '1.5px', textTransform: 'uppercase' as const, textAlign: i > 0 ? 'right' as const : 'left' as const }}>{h}</div>
           ))}
         </div>
-      ) : (
-        <div className="text-center py-16">
-          <div className="text-6xl mb-4">🔍</div>
-          <h3 className="text-2xl font-bold text-white mb-2">No markets found</h3>
-          <p className="text-gray-400 mb-6">Try adjusting your search or filters</p>
-          <button
-            onClick={() => { setSearchTerm(''); setSelectedCategory('All'); }}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-bold px-6 py-3 rounded-lg transition"
-          >
-            Reset Filters
-          </button>
-        </div>
-      )}
+
+        {/* Market rows */}
+        {sortedMarkets.length > 0 ? (
+          <div style={{ border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', overflow: 'hidden' }}>
+            {sortedMarkets.map((market, idx) => (
+              <div key={market.id} className="am-row" onClick={() => onMarketClick(market.id)} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 90px 160px', gap: '16px', padding: '14px 16px', borderBottom: idx < sortedMarkets.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none', alignItems: 'center', cursor: 'pointer', background: 'transparent' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '6px', height: '6px', borderRadius: '50%', flexShrink: 0, background: market.yesPercent > 60 ? 'rgba(34,197,94,0.7)' : market.yesPercent < 40 ? 'rgba(249,115,22,0.7)' : 'rgba(255,255,255,0.25)' }} />
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 400, color: 'rgba(255,255,255,0.85)', letterSpacing: '-0.1px', marginBottom: '2px' }}>{market.question}</div>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.2)' }}>{market.participants.toLocaleString()} participants · {market.category}{market.isFeatured ? ' · Featured' : ''}</div>
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right', fontFamily: "'DM Mono', monospace", fontSize: '13px', fontWeight: 500, color: market.yesPercent > 50 ? 'rgba(34,197,94,0.8)' : 'rgba(249,115,22,0.8)' }}>{market.yesPercent}%</div>
+                <div style={{ textAlign: 'right', fontFamily: "'DM Mono', monospace", fontSize: '12px', color: 'rgba(255,255,255,0.35)' }}>{market.volume}</div>
+                <div style={{ textAlign: 'right', fontFamily: "'DM Mono', monospace", fontSize: '11px', color: 'rgba(255,255,255,0.22)' }}>{market.endDate}</div>
+                <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
+                  <button className="am-yes" onClick={e => { e.stopPropagation(); onMarketClick(market.id); }} style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', padding: '5px 14px', borderRadius: '5px', border: '1px solid rgba(34,197,94,0.2)', background: 'rgba(34,197,94,0.06)', color: 'rgba(34,197,94,0.6)', cursor: 'pointer', transition: 'all 0.15s' }}>YES</button>
+                  <button className="am-no" onClick={e => { e.stopPropagation(); onMarketClick(market.id); }} style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', padding: '5px 14px', borderRadius: '5px', border: '1px solid rgba(249,115,22,0.2)', background: 'rgba(249,115,22,0.06)', color: 'rgba(249,115,22,0.6)', cursor: 'pointer', transition: 'all 0.15s' }}>NO</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '80px 0' }}>
+            <div style={{ fontSize: '32px', marginBottom: '16px', opacity: 0.4 }}>⌕</div>
+            <div style={{ fontSize: '15px', color: 'rgba(255,255,255,0.4)', marginBottom: '8px' }}>No markets found</div>
+            <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.2)', marginBottom: '24px' }}>Try adjusting your search or filters</div>
+            <button onClick={() => { setSearchTerm(''); setSelectedCategory('All'); }} style={{ fontSize: '12px', padding: '8px 20px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif" }}>Reset filters</button>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
 
 const MarketDetailsPage: FC<{ marketId: number; onBack: () => void }> = ({ marketId, onBack }) => {
-  const market = FEATURED_MARKETS.find(m => m.id === marketId) || 
+  const market = FEATURED_MARKETS.find(m => m.id === marketId) ||
     { ...SAMPLE_MARKETS.find(m => m.id === marketId), id: marketId };
 
   const [showBetModal, setShowBetModal] = useState(false);
@@ -518,214 +774,196 @@ const MarketDetailsPage: FC<{ marketId: number; onBack: () => void }> = ({ marke
 
   if (!market) return null;
 
+  const yesVol = (parseFloat(market.volume.replace(/[$MK]/g, '')) * (market.yesPercent / 100)).toFixed(1);
+  const noVol = (parseFloat(market.volume.replace(/[$MK]/g, '')) * ((100 - market.yesPercent) / 100)).toFixed(1);
+
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <button
-        onClick={onBack}
-        className="flex items-center space-x-2 text-gray-400 hover:text-white mb-6 transition"
-      >
-        <span>←</span>
-        <span>Back to Markets</span>
-      </button>
+    <div style={{ fontFamily: "'DM Sans', sans-serif", minHeight: '100vh' }}>
+      <style>{`
+        .md-tab:hover { color: rgba(255,255,255,0.7) !important; }
+        .md-yes:hover { background: rgba(34,197,94,0.12) !important; border-color: rgba(34,197,94,0.5) !important; }
+        .md-no:hover { background: rgba(249,115,22,0.12) !important; border-color: rgba(249,115,22,0.5) !important; }
+        .md-related:hover { border-color: rgba(255,255,255,0.12) !important; background: rgba(255,255,255,0.03) !important; }
+        .md-back:hover { color: rgba(255,255,255,0.8) !important; }
+        .md-bar { transition: height 0.2s ease; }
+        .md-bar:hover { opacity: 0.8; }
+        .md-bar:hover .md-tooltip { opacity: 1 !important; }
+      `}</style>
 
-      <div className="bg-gray-800/50 backdrop-blur border border-gray-700 rounded-2xl p-8 mb-6">
-        <div className="flex items-start justify-between mb-6">
-          <div className="flex-1">
-            <div className="flex items-center space-x-3 mb-3">
-              <span className={`px-4 py-1 rounded-full bg-gradient-to-r ${CATEGORIES.find(c => c.name === market.category)?.color || 'from-gray-500 to-gray-600'} text-white font-bold text-sm`}>
-                {market.category}
-              </span>
-              <span className="text-gray-400">•</span>
-              <span className="text-gray-400">{market.participants.toLocaleString()} participants</span>
-              <span className="text-gray-400">•</span>
-              <span className="text-gray-400">Ends {market.endDate}</span>
-            </div>
-            <h1 className="text-4xl font-bold text-white mb-4">{market.question}</h1>
-            <p className="text-gray-300 text-lg">
-              Market for predicting whether {market.question.toLowerCase()} The outcome will be resolved based on verified data sources.
-            </p>
-          </div>
-          <div className="ml-8">
-            <div className={`w-32 h-32 rounded-full flex items-center justify-center text-4xl font-bold ${
-              market.yesPercent > 50 ? 'bg-green-500/20 text-green-400 border-4 border-green-500' : 'bg-gray-700 text-gray-400 border-4 border-gray-600'
-            }`}>
-              {market.yesPercent}%
-            </div>
-            <div className="text-center mt-2 text-gray-400 text-sm">Yes Probability</div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-4 gap-6 mb-6">
-          <div className="bg-gray-700/30 rounded-lg p-4 text-center">
-            <div className="text-gray-400 text-sm mb-1">Total Volume</div>
-            <div className="text-2xl font-bold text-white">{market.volume}</div>
-          </div>
-          <div className="bg-gray-700/30 rounded-lg p-4 text-center">
-            <div className="text-gray-400 text-sm mb-1">Yes Volume</div>
-            <div className="text-2xl font-bold text-green-400">${(parseFloat(market.volume.replace(/[$MK]/g, '')) * (market.yesPercent / 100)).toFixed(1)}M</div>
-          </div>
-          <div className="bg-gray-700/30 rounded-lg p-4 text-center">
-            <div className="text-gray-400 text-sm mb-1">No Volume</div>
-            <div className="text-2xl font-bold text-orange-400">${(parseFloat(market.volume.replace(/[$MK]/g, '')) * ((100 - market.yesPercent) / 100)).toFixed(1)}M</div>
-          </div>
-          <div className="bg-gray-700/30 rounded-lg p-4 text-center">
-            <div className="text-gray-400 text-sm mb-1">Liquidity</div>
-            <div className="text-2xl font-bold text-purple-400">$890K</div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <button
-            onClick={() => setShowBetModal(true)}
-            className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-4 rounded-lg transition shadow-lg text-lg"
-          >
-            Bet Yes ({market.yesPercent}%)
-          </button>
-          <button
-            onClick={() => setShowBetModal(true)}
-            className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold py-4 rounded-lg transition shadow-lg text-lg"
-          >
-            Bet No ({100 - market.yesPercent}%)
+      {/* Top nav breadcrumb */}
+      <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '16px 0' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 32px' }}>
+          <button onClick={onBack} className="md-back" style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', fontSize: '13px', fontFamily: "'DM Sans', sans-serif", transition: 'color 0.15s', padding: 0 }}>
+            <span>←</span>
+            <span>Markets</span>
           </button>
         </div>
       </div>
 
-      <div className="flex space-x-4 mb-6">
-        <button
-          onClick={() => setActiveTab('chart')}
-          className={`px-6 py-3 rounded-lg font-medium transition ${
-            activeTab === 'chart' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-          }`}
-        >
-          📈 Price Chart
-        </button>
-        <button
-          onClick={() => setActiveTab('predictors')}
-          className={`px-6 py-3 rounded-lg font-medium transition ${
-            activeTab === 'predictors' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-          }`}
-        >
-          👥 Top Predictors
-        </button>
-        <button
-          onClick={() => setActiveTab('comments')}
-          className={`px-6 py-3 rounded-lg font-medium transition ${
-            activeTab === 'comments' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-          }`}
-        >
-          💬 Comments ({MOCK_COMMENTS.length})
-        </button>
-      </div>
+      {/* Market header */}
+      <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '36px 0 28px' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 32px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '48px' }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', letterSpacing: '1.5px', textTransform: 'uppercase' as const, color: 'rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.05)', padding: '3px 8px', borderRadius: '4px' }}>{market.category}</span>
+                <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '12px' }}>·</span>
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>{market.participants.toLocaleString()} participants</span>
+                <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '12px' }}>·</span>
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>Ends {market.endDate}</span>
+              </div>
+              <h1 style={{ fontSize: '30px', fontWeight: 300, color: 'white', letterSpacing: '-1px', lineHeight: 1.2, marginBottom: '12px' }}>{market.question}</h1>
+              <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', fontWeight: 300, lineHeight: 1.6 }}>
+                Market for predicting whether {market.question.toLowerCase()} The outcome will be resolved based on verified data sources.
+              </p>
+            </div>
 
-      {activeTab === 'chart' && (
-        <div className="bg-gray-800/50 backdrop-blur border border-gray-700 rounded-2xl p-8">
-          <h3 className="text-white font-bold text-xl mb-6">Price History</h3>
-          <div className="h-96 flex items-end space-x-2">
-            {MOCK_PRICE_HISTORY.map((point, idx) => (
-              <div key={idx} className="flex-1 flex flex-col items-center">
-                <div 
-                  className="w-full bg-gradient-to-t from-purple-600 to-purple-400 rounded-t-lg relative group cursor-pointer transition hover:from-purple-500 hover:to-purple-300"
-                  style={{ height: `${(point.yesPercent / 100) * 100}%` }}
-                >
-                  <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap">
-                    {point.yesPercent}%
-                  </div>
+            {/* Probability circle */}
+            <div style={{ textAlign: 'center' as const, flexShrink: 0 }}>
+              <div style={{ position: 'relative', width: '100px', height: '100px', marginBottom: '8px' }}>
+                <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
+                  <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
+                  <circle cx="50" cy="50" r="42" fill="none" stroke={market.yesPercent > 50 ? 'rgba(34,197,94,0.6)' : 'rgba(249,115,22,0.6)'} strokeWidth="8" strokeDasharray={`${(market.yesPercent / 100) * 263.9} 263.9`} strokeLinecap="round" />
+                </svg>
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '20px', fontWeight: 500, color: market.yesPercent > 50 ? 'rgba(34,197,94,0.9)' : 'rgba(249,115,22,0.9)', letterSpacing: '-0.5px' }}>{market.yesPercent}%</div>
                 </div>
-                <div className="text-gray-400 text-xs mt-2">{point.date}</div>
+              </div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.25)', letterSpacing: '1px', textTransform: 'uppercase' as const }}>Yes prob.</div>
+            </div>
+          </div>
+
+          {/* Stats row */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1px', background: 'rgba(255,255,255,0.06)', borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.06)', marginTop: '28px' }}>
+            {[
+              { label: 'Total Volume', value: market.volume, color: 'rgba(255,255,255,0.7)' },
+              { label: 'Yes Volume', value: '$' + yesVol + 'M', color: 'rgba(34,197,94,0.8)' },
+              { label: 'No Volume', value: '$' + noVol + 'M', color: 'rgba(249,115,22,0.8)' },
+              { label: 'Liquidity', value: '$890K', color: 'rgba(139,92,246,0.8)' },
+            ].map((stat, i) => (
+              <div key={i} style={{ background: 'rgba(255,255,255,0.02)', padding: '16px 20px' }}>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.25)', letterSpacing: '1px', textTransform: 'uppercase' as const, marginBottom: '6px' }}>{stat.label}</div>
+                <div style={{ fontSize: '20px', fontWeight: 500, color: stat.color, letterSpacing: '-0.5px' }}>{stat.value}</div>
               </div>
             ))}
           </div>
-          <div className="flex items-center justify-between mt-6 text-sm text-gray-400">
-            <span>📊 Yes probability over time</span>
-            <span>Current: {market.yesPercent}%</span>
-          </div>
-        </div>
-      )}
 
-      {activeTab === 'predictors' && (
-        <div className="bg-gray-800/50 backdrop-blur border border-gray-700 rounded-2xl p-8">
-          <h3 className="text-white font-bold text-xl mb-6">Top 5 Predictors</h3>
-          <div className="space-y-4">
-            {MOCK_TOP_PREDICTORS.map((predictor, idx) => (
-              <div key={idx} className="bg-gray-700/30 rounded-lg p-4 flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="text-2xl">{predictor.avatar}</div>
-                  <div>
-                    <div className="text-white font-semibold">{predictor.username}</div>
-                    <div className="flex items-center space-x-2">
-                      <span className={`px-2 py-1 rounded text-xs font-bold ${
-                        predictor.betSide === 'Yes' ? 'bg-green-500/20 text-green-400' : 'bg-orange-500/20 text-orange-400'
-                      }`}>
-                        {predictor.betSide}
-                      </span>
-                      <span className="text-gray-400 text-sm">{predictor.amount.toLocaleString()} tokens</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-gray-400 text-sm">Potential Win</div>
-                  <div className="text-green-400 font-bold text-lg">{predictor.potentialWin.toLocaleString()} tokens</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'comments' && (
-        <div className="bg-gray-800/50 backdrop-blur border border-gray-700 rounded-2xl p-8">
-          <h3 className="text-white font-bold text-xl mb-6">Discussion</h3>
-          <div className="space-y-4">
-            {MOCK_COMMENTS.map(comment => (
-              <div key={comment.id} className="bg-gray-700/30 rounded-lg p-4">
-                <div className="flex items-start space-x-3 mb-2">
-                  <div className="text-2xl">{comment.avatar}</div>
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <span className="text-white font-semibold">{comment.username}</span>
-                      <span className="text-gray-500 text-xs">•</span>
-                      <span className="text-gray-400 text-xs">{comment.time}</span>
-                    </div>
-                    <p className="text-gray-300">{comment.comment}</p>
-                    <div className="flex items-center space-x-4 mt-2">
-                      <button className="text-gray-400 hover:text-purple-400 text-sm flex items-center space-x-1 transition">
-                        <span>👍</span>
-                        <span>{comment.likes}</span>
-                      </button>
-                      <button className="text-gray-400 hover:text-purple-400 text-sm transition">Reply</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          
-          <div className="mt-6 bg-gray-700/30 rounded-lg p-4">
-            <textarea
-              placeholder="Share your thoughts..."
-              className="w-full bg-gray-600 border border-gray-500 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 min-h-[100px]"
-            />
-            <button className="mt-3 bg-purple-600 hover:bg-purple-700 text-white font-bold px-6 py-2 rounded-lg transition">
-              Post Comment
+          {/* Bet buttons */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '16px' }}>
+            <button className="md-yes" onClick={() => setShowBetModal(true)} style={{ padding: '14px', borderRadius: '8px', border: '1px solid rgba(34,197,94,0.25)', background: 'rgba(34,197,94,0.07)', color: 'rgba(34,197,94,0.9)', fontSize: '13px', fontWeight: 500, fontFamily: "'DM Mono', monospace", cursor: 'pointer', letterSpacing: '0.5px', transition: 'all 0.15s' }}>
+              BET YES · {market.yesPercent}%
+            </button>
+            <button className="md-no" onClick={() => setShowBetModal(true)} style={{ padding: '14px', borderRadius: '8px', border: '1px solid rgba(249,115,22,0.25)', background: 'rgba(249,115,22,0.07)', color: 'rgba(249,115,22,0.9)', fontSize: '13px', fontWeight: 500, fontFamily: "'DM Mono', monospace", cursor: 'pointer', letterSpacing: '0.5px', transition: 'all 0.15s' }}>
+              BET NO · {100 - market.yesPercent}%
             </button>
           </div>
         </div>
-      )}
+      </div>
 
-      <div className="mt-8">
-        <h3 className="text-white font-bold text-2xl mb-4">Related Markets</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {SAMPLE_MARKETS.filter(m => m.category === market.category && m.id !== marketId).slice(0, 3).map(relatedMarket => (
-            <div key={relatedMarket.id} className="bg-gray-800/50 backdrop-blur border border-gray-700 rounded-xl p-4 cursor-pointer hover:border-purple-500/50 transition">
-              <h4 className="text-white font-semibold mb-2">{relatedMarket.question}</h4>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-400 text-sm">{relatedMarket.volume}</span>
-                <span className={`text-lg font-bold ${relatedMarket.yesPercent > 50 ? 'text-green-400' : 'text-gray-400'}`}>
-                  {relatedMarket.yesPercent}%
-                </span>
+      {/* Tabs */}
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 32px' }}>
+        <div style={{ display: 'flex', gap: '0', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '24px' }}>
+          {[['chart', 'Price Chart'], ['predictors', 'Top Predictors'], ['comments', `Comments (${MOCK_COMMENTS.length})`]].map(([tab, label]) => (
+            <button key={tab} onClick={() => setActiveTab(tab as any)} className="md-tab" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '13px', padding: '14px 20px', background: 'none', border: 'none', borderBottom: activeTab === tab ? '1px solid rgba(255,255,255,0.6)' : '1px solid transparent', color: activeTab === tab ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.3)', cursor: 'pointer', transition: 'all 0.15s', marginBottom: '-1px' }}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Chart tab */}
+        {activeTab === 'chart' && (
+          <div style={{ border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '24px', marginBottom: '32px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.7)' }}>Yes Probability Over Time</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>Current: {market.yesPercent}%</div>
+            </div>
+            <div style={{ height: '240px', display: 'flex', alignItems: 'flex-end', gap: '4px', paddingBottom: '28px', position: 'relative' }}>
+              {/* Y axis lines */}
+              {[0, 25, 50, 75, 100].map(val => (
+                <div key={val} style={{ position: 'absolute', left: 0, right: 0, bottom: `calc(28px + ${val}% * (240px - 28px) / 100)`, borderTop: '1px solid rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center' }}>
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '9px', color: 'rgba(255,255,255,0.15)', marginRight: '4px', whiteSpace: 'nowrap' as const }}>{val}%</span>
+                </div>
+              ))}
+              {MOCK_PRICE_HISTORY.map((point, idx) => (
+                <div key={idx} style={{ flex: 1, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
+                  <div className="md-bar" style={{ position: 'relative', width: '100%', height: `${point.yesPercent}%`, background: point.yesPercent > 50 ? 'rgba(34,197,94,0.25)' : 'rgba(249,115,22,0.25)', borderRadius: '3px 3px 0 0', borderTop: `2px solid ${point.yesPercent > 50 ? 'rgba(34,197,94,0.6)' : 'rgba(249,115,22,0.6)'}`, cursor: 'pointer' }}>
+                    <div className="md-tooltip" style={{ position: 'absolute', top: '-28px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.8)', color: 'white', fontSize: '10px', padding: '3px 6px', borderRadius: '4px', whiteSpace: 'nowrap' as const, opacity: 0, transition: 'opacity 0.15s', fontFamily: "'DM Mono', monospace" }}>{point.yesPercent}%</div>
+                  </div>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '9px', color: 'rgba(255,255,255,0.2)', marginTop: '6px', transform: 'rotate(-45deg)', whiteSpace: 'nowrap' as const }}>{point.date}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Predictors tab */}
+        {activeTab === 'predictors' && (
+          <div style={{ border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', overflow: 'hidden', marginBottom: '32px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 120px 120px', gap: '16px', padding: '8px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}>
+              {['Predictor', 'Side', 'Amount', 'Potential Win'].map((h, i) => (
+                <div key={i} style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.2)', letterSpacing: '1.5px', textTransform: 'uppercase' as const }}>{h}</div>
+              ))}
+            </div>
+            {MOCK_TOP_PREDICTORS.map((predictor, idx) => (
+              <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 120px 120px', gap: '16px', padding: '14px 16px', borderBottom: idx < MOCK_TOP_PREDICTORS.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '18px' }}>{predictor.avatar}</span>
+                  <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)' }}>{predictor.username}</span>
+                </div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', padding: '3px 8px', borderRadius: '4px', background: predictor.betSide === 'Yes' ? 'rgba(34,197,94,0.08)' : 'rgba(249,115,22,0.08)', color: predictor.betSide === 'Yes' ? 'rgba(34,197,94,0.8)' : 'rgba(249,115,22,0.8)', display: 'inline-block', textTransform: 'uppercase' as const }}>{predictor.betSide}</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>{predictor.amount.toLocaleString()} OT</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '12px', color: 'rgba(34,197,94,0.7)' }}>{predictor.potentialWin.toLocaleString()} OT</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Comments tab */}
+        {activeTab === 'comments' && (
+          <div style={{ marginBottom: '32px' }}>
+            <div style={{ border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', overflow: 'hidden', marginBottom: '12px' }}>
+              {MOCK_COMMENTS.map((comment, idx) => (
+                <div key={comment.id} style={{ padding: '16px 20px', borderBottom: idx < MOCK_COMMENTS.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <span style={{ fontSize: '20px', flexShrink: 0 }}>{comment.avatar}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.8)' }}>{comment.username}</span>
+                        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.2)' }}>{comment.time}</span>
+                      </div>
+                      <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', lineHeight: 1.6, marginBottom: '8px' }}>{comment.comment}</p>
+                      <div style={{ display: 'flex', gap: '12px' }}>
+                        <button style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.25)', fontSize: '12px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", padding: 0 }}>↑ {comment.likes}</button>
+                        <button style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.25)', fontSize: '12px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", padding: 0 }}>Reply</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ border: '1px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: '12px', background: 'rgba(255,255,255,0.02)' }}>
+              <textarea placeholder="Share your thoughts..." style={{ width: '100%', background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', fontSize: '13px', fontFamily: "'DM Sans', sans-serif", resize: 'none' as const, minHeight: '80px', outline: 'none' }} />
+              <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '10px', marginTop: '4px' }}>
+                <button style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', padding: '6px 16px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', letterSpacing: '0.5px' }}>POST</button>
               </div>
             </div>
-          ))}
+          </div>
+        )}
+
+        {/* Related markets */}
+        <div style={{ marginBottom: '40px' }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px', textTransform: 'uppercase' as const, marginBottom: '12px' }}>Related Markets</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+            {SAMPLE_MARKETS.filter(m => m.category === market.category && m.id !== marketId).slice(0, 3).map(rel => (
+              <div key={rel.id} className="md-related" style={{ border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '14px 16px', cursor: 'pointer', transition: 'all 0.15s' }}>
+                <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', marginBottom: '10px', lineHeight: 1.4 }}>{rel.question}</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.2)' }}>{rel.volume}</span>
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '13px', color: rel.yesPercent > 50 ? 'rgba(34,197,94,0.7)' : 'rgba(249,115,22,0.7)' }}>{rel.yesPercent}%</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -1043,8 +1281,8 @@ const MyPredictionsPage: FC = () => {
   const winRate = ((totalWins / MOCK_PREDICTION_HISTORY.length) * 100).toFixed(0);
   const avgProfit = (totalProfit / MOCK_PREDICTION_HISTORY.length).toFixed(0);
 
-  const filteredHistory = filterCategory === 'All' 
-    ? MOCK_PREDICTION_HISTORY 
+  const filteredHistory = filterCategory === 'All'
+    ? MOCK_PREDICTION_HISTORY
     : MOCK_PREDICTION_HISTORY.filter(p => p.category === filterCategory);
 
   const sortedHistory = [...filteredHistory].sort((a, b) => {
@@ -1054,259 +1292,187 @@ const MyPredictionsPage: FC = () => {
   });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-white mb-2">📊 My Predictions</h1>
-        <p className="text-gray-400">Track your performance and manage your bets</p>
+    <div style={{ fontFamily: "'DM Sans', sans-serif", minHeight: '100vh' }}>
+      <style>{`
+        .mp-row { transition: background 0.15s ease; }
+        .mp-row:hover { background: rgba(255,255,255,0.03) !important; }
+        .mp-tab:hover { color: rgba(255,255,255,0.7) !important; }
+        .mp-sort:hover { background: rgba(255,255,255,0.06) !important; color: rgba(255,255,255,0.7) !important; }
+      `}</style>
+
+      {/* Page header */}
+      <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '40px 0 32px' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 32px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '32px' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(139,92,246,0.8)', boxShadow: '0 0 8px rgba(139,92,246,0.5)' }} />
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', letterSpacing: '2px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase' }}>Portfolio</span>
+              </div>
+              <h1 style={{ fontSize: '34px', fontWeight: 300, color: 'white', letterSpacing: '-1.5px', lineHeight: 1.1, marginBottom: '8px' }}>
+                My <span style={{ color: 'rgba(255,255,255,0.3)' }}>predictions</span>
+              </h1>
+              <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.3)', fontWeight: 300 }}>
+                {MOCK_ACTIVE_PREDICTIONS.length} active · {MOCK_PREDICTION_HISTORY.length} completed
+              </p>
+            </div>
+          </div>
+
+          {/* Stats row */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1px', background: 'rgba(255,255,255,0.06)', borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.06)' }}>
+            {[
+              { label: 'Active Bets', value: MOCK_ACTIVE_PREDICTIONS.length.toString(), sub: 'in progress', color: 'rgba(139,92,246,0.8)' },
+              { label: 'Total Wins', value: totalWins.toString(), sub: winRate + '% win rate', color: 'rgba(34,197,94,0.8)' },
+              { label: 'Total Losses', value: totalLosses.toString(), sub: MOCK_PREDICTION_HISTORY.length + ' total bets', color: 'rgba(239,68,68,0.8)' },
+              { label: 'Total Profit', value: '+' + totalProfit, sub: 'oracle tokens', color: 'rgba(234,179,8,0.8)' },
+              { label: 'Avg Profit', value: '+' + avgProfit, sub: 'per prediction', color: 'rgba(96,165,250,0.8)' },
+            ].map((stat, i) => (
+              <div key={i} style={{ background: 'rgba(255,255,255,0.02)', padding: '20px 24px' }}>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.25)', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: '8px' }}>{stat.label}</div>
+                <div style={{ fontSize: '24px', fontWeight: 500, color: stat.color, letterSpacing: '-1px', marginBottom: '4px' }}>{stat.value}</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.2)' }}>{stat.sub}</div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
-        <div className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-2xl p-6 shadow-lg">
-          <div className="text-purple-200 text-sm mb-2">Active Bets</div>
-          <div className="text-4xl font-bold text-white mb-1">{MOCK_ACTIVE_PREDICTIONS.length}</div>
-          <div className="text-purple-200 text-xs">In progress</div>
-        </div>
-        <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-2xl p-6 shadow-lg">
-          <div className="text-green-200 text-sm mb-2">Total Wins</div>
-          <div className="text-4xl font-bold text-white mb-1">{totalWins}</div>
-          <div className="text-green-200 text-xs">{winRate}% win rate</div>
-        </div>
-        <div className="bg-gradient-to-br from-red-600 to-red-700 rounded-2xl p-6 shadow-lg">
-          <div className="text-red-200 text-sm mb-2">Total Losses</div>
-          <div className="text-4xl font-bold text-white mb-1">{totalLosses}</div>
-          <div className="text-red-200 text-xs">{MOCK_PREDICTION_HISTORY.length} total bets</div>
-        </div>
-        <div className="bg-gradient-to-br from-yellow-600 to-orange-600 rounded-2xl p-6 shadow-lg">
-          <div className="text-yellow-200 text-sm mb-2">Total Profit</div>
-          <div className="text-4xl font-bold text-white mb-1">+{totalProfit}</div>
-          <div className="text-yellow-200 text-xs">Oracle Tokens</div>
-        </div>
-        <div className="bg-gradient-to-br from-blue-600 to-cyan-600 rounded-2xl p-6 shadow-lg">
-          <div className="text-blue-200 text-sm mb-2">Avg Profit/Bet</div>
-          <div className="text-4xl font-bold text-white mb-1">+{avgProfit}</div>
-          <div className="text-blue-200 text-xs">Tokens per bet</div>
-        </div>
-      </div>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px 32px' }}>
+        {/* Tabs + filters row */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', gap: '0px', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '7px', overflow: 'hidden' }}>
+            {[['active', `Active (${MOCK_ACTIVE_PREDICTIONS.length})`], ['history', `History (${MOCK_PREDICTION_HISTORY.length})`], ['analytics', 'Analytics']].map(([tab, label]) => (
+              <button key={tab} onClick={() => setActiveTab(tab as any)} className="mp-tab" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '12px', padding: '7px 16px', background: activeTab === tab ? 'rgba(255,255,255,0.08)' : 'transparent', color: activeTab === tab ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', borderRight: '1px solid rgba(255,255,255,0.07)', cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap' as const }}>
+                {label}
+              </button>
+            ))}
+          </div>
 
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex space-x-4">
-          <button
-            onClick={() => setActiveTab('active')}
-            className={`px-6 py-3 rounded-lg font-medium transition ${
-              activeTab === 'active'
-                ? 'bg-purple-600 text-white'
-                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-            }`}
-          >
-            Active ({MOCK_ACTIVE_PREDICTIONS.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('history')}
-            className={`px-6 py-3 rounded-lg font-medium transition ${
-              activeTab === 'history'
-                ? 'bg-purple-600 text-white'
-                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-            }`}
-          >
-            History ({MOCK_PREDICTION_HISTORY.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('analytics')}
-            className={`px-6 py-3 rounded-lg font-medium transition ${
-              activeTab === 'analytics'
-                ? 'bg-purple-600 text-white'
-                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-            }`}
-          >
-            Analytics
-          </button>
+          {activeTab === 'history' && (
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', padding: '6px 10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '6px', color: 'rgba(255,255,255,0.5)', cursor: 'pointer' }}>
+                <option value="All">All Categories</option>
+                {CATEGORIES.slice(1).map(cat => <option key={cat.name} value={cat.name}>{cat.name}</option>)}
+              </select>
+              <select value={sortBy} onChange={e => setSortBy(e.target.value as any)} style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', padding: '6px 10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '6px', color: 'rgba(255,255,255,0.5)', cursor: 'pointer' }}>
+                <option value="date">By Date</option>
+                <option value="profit">By Profit</option>
+                <option value="amount">By Amount</option>
+              </select>
+            </div>
+          )}
         </div>
 
-        {activeTab === 'history' && (
-          <div className="flex space-x-3">
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="bg-gray-800 text-white px-4 py-2 rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
-            >
-              <option value="All">All Categories</option>
-              {CATEGORIES.slice(1).map(cat => (
-                <option key={cat.name} value={cat.name}>{cat.name}</option>
+        {/* Active tab */}
+        {activeTab === 'active' && (
+          <div style={{ border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', overflow: 'hidden' }}>
+            {/* Table header */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 100px 120px 120px', gap: '16px', padding: '8px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}>
+              {['Market', 'Side', 'Amount', 'Odds', 'Potential Win', 'Ends'].map((h, i) => (
+                <div key={i} style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.2)', letterSpacing: '1.5px', textTransform: 'uppercase' as const }}>{h}</div>
               ))}
-            </select>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="bg-gray-800 text-white px-4 py-2 rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
-            >
-              <option value="date">Sort by Date</option>
-              <option value="profit">Sort by Profit</option>
-              <option value="amount">Sort by Amount</option>
-            </select>
+            </div>
+            {MOCK_ACTIVE_PREDICTIONS.map((pred, idx) => (
+              <div key={pred.id} className="mp-row" style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 100px 120px 120px', gap: '16px', padding: '14px 16px', borderBottom: idx < MOCK_ACTIVE_PREDICTIONS.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.85)', marginBottom: '2px', letterSpacing: '-0.1px' }}>{pred.market}</div>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.2)' }}>{pred.category} · Placed {pred.placedDate}</div>
+                </div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', padding: '3px 8px', borderRadius: '4px', background: pred.betSide === 'Yes' ? 'rgba(34,197,94,0.08)' : 'rgba(249,115,22,0.08)', color: pred.betSide === 'Yes' ? 'rgba(34,197,94,0.8)' : 'rgba(249,115,22,0.8)', display: 'inline-block', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>{pred.betSide}</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '13px', color: 'rgba(255,255,255,0.6)' }}>{pred.amount} OT</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '13px', color: 'rgba(255,255,255,0.6)' }}>{pred.currentOdds}%</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '13px', color: 'rgba(34,197,94,0.8)' }}>{pred.potentialWin} OT</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>{pred.endDate}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* History tab */}
+        {activeTab === 'history' && (
+          <div style={{ border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', overflow: 'hidden' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 80px 100px', gap: '16px', padding: '8px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}>
+              {['Market', 'Side', 'Amount', 'Result', 'Profit'].map((h, i) => (
+                <div key={i} style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.2)', letterSpacing: '1.5px', textTransform: 'uppercase' as const }}>{h}</div>
+              ))}
+            </div>
+            {sortedHistory.map((pred, idx) => (
+              <div key={pred.id} className="mp-row" style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 80px 100px', gap: '16px', padding: '12px 16px', borderBottom: idx < sortedHistory.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.85)', marginBottom: '2px', letterSpacing: '-0.1px' }}>{pred.market}</div>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.2)' }}>{pred.category} · {pred.date}</div>
+                </div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', padding: '3px 8px', borderRadius: '4px', background: pred.betSide === 'Yes' ? 'rgba(34,197,94,0.08)' : 'rgba(249,115,22,0.08)', color: pred.betSide === 'Yes' ? 'rgba(34,197,94,0.8)' : 'rgba(249,115,22,0.8)', display: 'inline-block', textTransform: 'uppercase' as const, letterSpacing: '0.5px' }}>{pred.betSide}</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>{pred.amount} OT</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', padding: '3px 8px', borderRadius: '4px', background: pred.result === 'Won' ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)', color: pred.result === 'Won' ? 'rgba(34,197,94,0.8)' : 'rgba(239,68,68,0.7)', display: 'inline-block', letterSpacing: '0.5px' }}>{pred.result}</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '13px', color: pred.profit > 0 ? 'rgba(34,197,94,0.8)' : 'rgba(239,68,68,0.7)', letterSpacing: '-0.3px' }}>{pred.profit > 0 ? '+' : ''}{pred.profit}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Analytics tab */}
+        {activeTab === 'analytics' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            {/* Category performance */}
+            <div style={{ border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', overflow: 'hidden' }}>
+              <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.8)', marginBottom: '2px' }}>Performance by Category</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.25)' }}>Accuracy across all markets</div>
+              </div>
+              <div style={{ padding: '8px 0' }}>
+                {CATEGORY_REPUTATION.map((cat, idx) => (
+                  <div key={cat.category} style={{ padding: '12px 20px', borderBottom: idx < CATEGORY_REPUTATION.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <div>
+                        <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)' }}>{cat.category}</span>
+                        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.2)', marginLeft: '8px' }}>{cat.wins}W · {cat.total - cat.wins}L</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '12px', color: 'rgba(139,92,246,0.8)' }}>{cat.accuracy}%</span>
+                        <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', color: 'rgba(234,179,8,0.6)' }}>{cat.tokens} OT</span>
+                      </div>
+                    </div>
+                    <div style={{ height: '2px', background: 'rgba(255,255,255,0.05)', borderRadius: '1px', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: cat.accuracy + '%', background: 'rgba(139,92,246,0.5)', borderRadius: '1px' }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Win/Loss */}
+            <div style={{ border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', overflow: 'hidden' }}>
+              <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.8)', marginBottom: '2px' }}>Win / Loss Distribution</div>
+                <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.25)' }}>Overall prediction accuracy</div>
+              </div>
+              <div style={{ padding: '32px 20px', display: 'flex', flexDirection: 'column' as const, alignItems: 'center' }}>
+                <div style={{ position: 'relative', width: '160px', height: '160px', marginBottom: '28px' }}>
+                  <svg viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)', width: '100%', height: '100%' }}>
+                    <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(239,68,68,0.25)" strokeWidth="12" strokeDasharray={`${(totalLosses / MOCK_PREDICTION_HISTORY.length) * 251.2} 251.2`} />
+                    <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(34,197,94,0.5)" strokeWidth="12" strokeDasharray={`${(totalWins / MOCK_PREDICTION_HISTORY.length) * 251.2} 251.2`} strokeDashoffset={`-${(totalLosses / MOCK_PREDICTION_HISTORY.length) * 251.2}`} />
+                  </svg>
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ fontSize: '26px', fontWeight: 300, color: 'white', letterSpacing: '-1px' }}>{winRate}%</div>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '9px', color: 'rgba(255,255,255,0.3)', letterSpacing: '1px', textTransform: 'uppercase' as const }}>Win Rate</div>
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', width: '100%' }}>
+                  <div style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.12)', borderRadius: '8px', padding: '16px', textAlign: 'center' as const }}>
+                    <div style={{ fontSize: '28px', fontWeight: 300, color: 'rgba(34,197,94,0.8)', letterSpacing: '-1px', marginBottom: '4px' }}>{totalWins}</div>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(34,197,94,0.4)', letterSpacing: '1px', textTransform: 'uppercase' as const }}>Wins</div>
+                  </div>
+                  <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.12)', borderRadius: '8px', padding: '16px', textAlign: 'center' as const }}>
+                    <div style={{ fontSize: '28px', fontWeight: 300, color: 'rgba(239,68,68,0.7)', letterSpacing: '-1px', marginBottom: '4px' }}>{totalLosses}</div>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(239,68,68,0.4)', letterSpacing: '1px', textTransform: 'uppercase' as const }}>Losses</div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
-
-      {activeTab === 'active' && (
-        <div className="space-y-4">
-          {MOCK_ACTIVE_PREDICTIONS.map(pred => (
-            <div key={pred.id} className="bg-gray-800/50 backdrop-blur border border-gray-700 rounded-xl p-6 hover:border-purple-500/50 transition">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <span className="text-xs font-medium text-purple-400">{pred.category}</span>
-                    <span className="text-xs text-gray-500">•</span>
-                    <span className="text-xs text-gray-400">Placed {pred.placedDate}</span>
-                  </div>
-                  <h3 className="text-white font-bold text-xl mb-2">{pred.market}</h3>
-                  <div className="flex items-center space-x-3">
-                    <span className={`px-3 py-1 rounded-lg text-sm font-bold ${
-                      pred.betSide === 'Yes' ? 'bg-green-500/20 text-green-400' : 'bg-orange-500/20 text-orange-400'
-                    }`}>
-                      {pred.betSide}
-                    </span>
-                    <span className="text-gray-300">{pred.amount} tokens bet</span>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm text-gray-400 mb-1">Current Odds</div>
-                  <div className="text-3xl font-bold text-white mb-2">{pred.currentOdds}%</div>
-                  <div className="text-sm text-gray-400">Ends {pred.endDate}</div>
-                </div>
-              </div>
-              <div className="bg-gray-700/50 rounded-lg p-4 flex justify-between items-center">
-                <div>
-                  <div className="text-gray-400 text-sm mb-1">Potential Win</div>
-                  <div className="text-green-400 font-bold text-xl">{pred.potentialWin} tokens</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-gray-400 text-sm mb-1">Potential Profit</div>
-                  <div className="text-yellow-400 font-bold text-xl">+{pred.potentialWin - pred.amount} tokens</div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {activeTab === 'history' && (
-        <div className="space-y-3">
-          {sortedHistory.map(pred => (
-            <div key={pred.id} className="bg-gray-800/50 backdrop-blur border border-gray-700 rounded-lg p-4 flex items-center justify-between hover:border-purple-500/30 transition">
-              <div className="flex-1">
-                <div className="flex items-center space-x-2 mb-1">
-                  <span className="text-xs font-medium text-purple-400">{pred.category}</span>
-                  <span className="text-xs text-gray-500">•</span>
-                  <span className="text-xs text-gray-400">{pred.date}</span>
-                </div>
-                <h4 className="text-white font-semibold mb-2">{pred.market}</h4>
-                <div className="flex items-center space-x-2">
-                  <span className={`px-2 py-1 rounded text-xs font-bold ${
-                    pred.betSide === 'Yes' ? 'bg-green-500/20 text-green-400' : 'bg-orange-500/20 text-orange-400'
-                  }`}>
-                    {pred.betSide}
-                  </span>
-                  <span className="text-gray-400 text-sm">{pred.amount} tokens</span>
-                </div>
-              </div>
-              <div className="flex items-center space-x-8">
-                <div className="text-right">
-                  <div className="text-gray-400 text-xs mb-1">Result</div>
-                  <div className={`px-4 py-2 rounded-lg font-bold ${
-                    pred.result === 'Won' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
-                  }`}>
-                    {pred.result}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-gray-400 text-xs mb-1">Profit</div>
-                  <div className={`text-2xl font-bold ${pred.profit > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {pred.profit > 0 ? '+' : ''}{pred.profit}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {activeTab === 'analytics' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-gray-800/50 backdrop-blur border border-gray-700 rounded-xl p-6">
-            <h3 className="text-white font-bold text-xl mb-6">Performance by Category</h3>
-            <div className="space-y-4">
-              {CATEGORY_REPUTATION.map(cat => (
-                <div key={cat.category} className="bg-gray-700/50 rounded-lg p-4">
-                  <div className="flex justify-between items-center mb-3">
-                    <div>
-                      <div className="text-white font-semibold">{cat.category}</div>
-                      <div className="text-sm text-gray-400">{cat.wins}W - {cat.total - cat.wins}L</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-purple-400">{cat.accuracy}%</div>
-                      <div className="text-xs text-gray-400">accuracy</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 mr-4">
-                      <div className="w-full bg-gray-600 rounded-full h-2">
-                        <div 
-                          className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full"
-                          style={{ width: `${cat.accuracy}%` }}
-                        />
-                      </div>
-                    </div>
-                    <span className="text-yellow-400 font-bold">{cat.tokens} tokens</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-gray-800/50 backdrop-blur border border-gray-700 rounded-xl p-6">
-            <h3 className="text-white font-bold text-xl mb-6">Win/Loss Distribution</h3>
-            <div className="flex items-center justify-center h-64">
-              <div className="relative w-48 h-48">
-                <svg viewBox="0 0 100 100" className="transform -rotate-90">
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="40"
-                    fill="none"
-                    stroke="#ef4444"
-                    strokeWidth="20"
-                    strokeDasharray={`${(totalLosses / MOCK_PREDICTION_HISTORY.length) * 251.2} 251.2`}
-                  />
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r="40"
-                    fill="none"
-                    stroke="#22c55e"
-                    strokeWidth="20"
-                    strokeDasharray={`${(totalWins / MOCK_PREDICTION_HISTORY.length) * 251.2} 251.2`}
-                    strokeDashoffset={`-${(totalLosses / MOCK_PREDICTION_HISTORY.length) * 251.2}`}
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <div className="text-3xl font-bold text-white">{winRate}%</div>
-                  <div className="text-sm text-gray-400">Win Rate</div>
-                </div>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4 mt-6">
-              <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 text-center">
-                <div className="text-green-400 text-3xl font-bold">{totalWins}</div>
-                <div className="text-green-300 text-sm">Wins</div>
-              </div>
-              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 text-center">
-                <div className="text-red-400 text-3xl font-bold">{totalLosses}</div>
-                <div className="text-red-300 text-sm">Losses</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
@@ -1321,130 +1487,111 @@ const LeaderboardPage: FC = () => {
   const yourRank = LEADERBOARD_DATA.find(u => u.username === 'You');
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-white mb-2">🏆 Leaderboard</h1>
-        <p className="text-gray-400">Top predictors ranked by Oracle Tokens earned</p>
-      </div>
+    <div style={{ fontFamily: "'DM Sans', sans-serif", minHeight: '100vh' }}>
+      <style>{`
+        .lb-row { transition: background 0.15s ease; }
+        .lb-row:hover { background: rgba(255,255,255,0.03) !important; }
+        .lb-cat:hover { background: rgba(255,255,255,0.06) !important; color: rgba(255,255,255,0.8) !important; }
+      `}</style>
 
-      {yourRank && (
-        <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl p-6 mb-8 shadow-2xl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="text-5xl">{yourRank.avatar}</div>
-              <div>
-                <div className="text-white/80 text-sm mb-1">Your Rank</div>
-                <div className="text-3xl font-bold text-white">#{yourRank.rank}</div>
+      {/* Page header */}
+      <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '40px 0 32px' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 32px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(234,179,8,0.8)', boxShadow: '0 0 8px rgba(234,179,8,0.5)' }} />
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', letterSpacing: '2px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase' }}>Rankings</span>
               </div>
+              <h1 style={{ fontSize: '34px', fontWeight: 300, color: 'white', letterSpacing: '-1.5px', lineHeight: 1.1, marginBottom: '8px' }}>
+                Leaderboard <span style={{ color: 'rgba(255,255,255,0.3)' }}>· top predictors</span>
+              </h1>
+              <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.3)', fontWeight: 300 }}>
+                Ranked by Oracle Tokens earned · {LEADERBOARD_DATA.length} participants
+              </p>
             </div>
-            <div className="grid grid-cols-3 gap-8 text-center">
-              <div>
-                <div className="text-white/80 text-sm mb-1">Tokens</div>
-                <div className="text-2xl font-bold text-white">{yourRank.totalTokens.toLocaleString()}</div>
+            {/* Your rank card */}
+            {yourRank && (
+              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '16px 24px', display: 'flex', alignItems: 'center', gap: '24px' }}>
+                <div>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.25)', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: '4px' }}>Your Rank</div>
+                  <div style={{ fontSize: '28px', fontWeight: 300, color: 'white', letterSpacing: '-1px' }}>#{yourRank.rank}</div>
+                </div>
+                <div style={{ width: '1px', height: '40px', background: 'rgba(255,255,255,0.07)' }} />
+                {[{ label: 'Tokens', value: yourRank.totalTokens.toLocaleString() }, { label: 'Win Rate', value: yourRank.winRate + '%' }, { label: 'Predictions', value: yourRank.totalPredictions.toString() }].map((s, i) => (
+                  <div key={i}>
+                    <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.25)', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '4px' }}>{s.label}</div>
+                    <div style={{ fontSize: '16px', fontWeight: 500, color: 'white', letterSpacing: '-0.5px' }}>{s.value}</div>
+                  </div>
+                ))}
               </div>
-              <div>
-                <div className="text-white/80 text-sm mb-1">Win Rate</div>
-                <div className="text-2xl font-bold text-white">{yourRank.winRate}%</div>
-              </div>
-              <div>
-                <div className="text-white/80 text-sm mb-1">Predictions</div>
-                <div className="text-2xl font-bold text-white">{yourRank.totalPredictions}</div>
-              </div>
-            </div>
+            )}
           </div>
         </div>
-      )}
-
-      <div className="flex items-center space-x-3 mb-6 overflow-x-auto pb-2">
-        {CATEGORIES.map(cat => (
-          <button
-            key={cat.name}
-            onClick={() => setSelectedCategory(cat.name)}
-            className={`px-6 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all ${
-              selectedCategory === cat.name
-                ? 'bg-gradient-to-r ' + cat.color + ' text-white shadow-lg'
-                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-            }`}
-          >
-            {cat.name}
-          </button>
-        ))}
       </div>
 
-      <div className="bg-gray-800/50 backdrop-blur border border-gray-700 rounded-2xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-800/80">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Rank</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">User</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Tier</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Tokens</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Win Rate</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Predictions</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Specialty</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-700">
-              {filteredLeaderboard.map((user) => (
-                <tr 
-                  key={user.rank}
-                  className={`transition hover:bg-gray-700/50 ${
-                    user.username === 'You' ? 'bg-purple-500/10 border-l-4 border-purple-500' : ''
-                  }`}
-                >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      {user.rank <= 3 ? (
-                        <span className="text-2xl">
-                          {user.rank === 1 ? '🥇' : user.rank === 2 ? '🥈' : '🥉'}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 font-bold">#{user.rank}</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center space-x-3">
-                      <span className="text-2xl">{user.avatar}</span>
-                      <span className={`font-semibold ${user.username === 'You' ? 'text-purple-400' : 'text-white'}`}>
-                        {user.username}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                      user.tier === 'Oracle' ? 'bg-yellow-500/20 text-yellow-400' :
-                      user.tier === 'Expert' ? 'bg-purple-500/20 text-purple-400' :
-                      'bg-blue-500/20 text-blue-400'
-                    }`}>
-                      {user.tier}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-green-400 font-bold">{user.totalTokens.toLocaleString()}</span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-white font-semibold">{user.winRate}%</span>
-                      <div className="w-16 bg-gray-700 rounded-full h-2">
-                        <div 
-                          className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full"
-                          style={{ width: `${user.winRate}%` }}
-                        />
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-gray-300">{user.wins}/{user.totalPredictions}</span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-gray-400 text-sm">{user.category}</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px 32px' }}>
+        {/* Category filter */}
+        <div style={{ display: 'flex', gap: '4px', marginBottom: '20px' }}>
+          {CATEGORIES.map(cat => (
+            <button key={cat.name} onClick={() => setSelectedCategory(cat.name)} className="lb-cat" style={{ fontSize: '12px', padding: '5px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.07)', background: selectedCategory === cat.name ? 'rgba(255,255,255,0.1)' : 'transparent', color: selectedCategory === cat.name ? 'white' : 'rgba(255,255,255,0.3)', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", transition: 'all 0.15s', whiteSpace: 'nowrap' as const }}>
+              {cat.name}
+            </button>
+          ))}
+        </div>
+
+        {/* Table header */}
+        <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr 90px 120px 140px 80px 80px', gap: '16px', padding: '8px 16px', marginBottom: '4px' }}>
+          {['Rank', 'User', 'Tier', 'Tokens', 'Win Rate', 'W/L', 'Focus'].map((h, i) => (
+            <div key={i} style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.2)', letterSpacing: '1.5px', textTransform: 'uppercase' as const }}>{h}</div>
+          ))}
+        </div>
+
+        {/* Leaderboard rows */}
+        <div style={{ border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', overflow: 'hidden' }}>
+          {filteredLeaderboard.map((user, idx) => (
+            <div key={user.rank} className="lb-row" style={{ display: 'grid', gridTemplateColumns: '60px 1fr 90px 120px 140px 80px 80px', gap: '16px', padding: '12px 16px', borderBottom: idx < filteredLeaderboard.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none', alignItems: 'center', background: user.username === 'You' ? 'rgba(139,92,246,0.05)' : 'transparent', borderLeft: user.username === 'You' ? '2px solid rgba(139,92,246,0.4)' : '2px solid transparent' }}>
+              
+              {/* Rank */}
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '13px', color: idx === 0 ? 'rgba(234,179,8,0.9)' : idx === 1 ? 'rgba(200,200,200,0.7)' : idx === 2 ? 'rgba(180,120,60,0.8)' : 'rgba(255,255,255,0.25)', fontWeight: idx < 3 ? 600 : 400 }}>
+                {idx < 3 ? ['01', '02', '03'][idx] : '#' + user.rank}
+              </div>
+
+              {/* User */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '18px' }}>{user.avatar}</span>
+                <span style={{ fontSize: '13px', fontWeight: 400, color: user.username === 'You' ? 'rgba(139,92,246,0.9)' : 'rgba(255,255,255,0.85)', letterSpacing: '-0.1px' }}>{user.username}</span>
+              </div>
+
+              {/* Tier */}
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', letterSpacing: '0.5px', color: user.tier === 'Oracle' ? 'rgba(234,179,8,0.7)' : user.tier === 'Expert' ? 'rgba(139,92,246,0.7)' : 'rgba(96,165,250,0.7)', background: user.tier === 'Oracle' ? 'rgba(234,179,8,0.08)' : user.tier === 'Expert' ? 'rgba(139,92,246,0.08)' : 'rgba(96,165,250,0.08)', padding: '3px 8px', borderRadius: '4px', display: 'inline-block', textTransform: 'uppercase' as const }}>
+                {user.tier}
+              </div>
+
+              {/* Tokens */}
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '13px', color: 'rgba(34,197,94,0.8)', letterSpacing: '-0.3px' }}>
+                {user.totalTokens.toLocaleString()}
+              </div>
+
+              {/* Win rate with bar */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '12px', color: 'rgba(255,255,255,0.6)', minWidth: '32px' }}>{user.winRate}%</span>
+                <div style={{ flex: 1, height: '2px', background: 'rgba(255,255,255,0.06)', borderRadius: '1px', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: user.winRate + '%', background: 'rgba(34,197,94,0.5)', borderRadius: '1px' }} />
+                </div>
+              </div>
+
+              {/* W/L */}
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', color: 'rgba(255,255,255,0.25)' }}>
+                {user.wins}/{user.totalPredictions}
+              </div>
+
+              {/* Focus */}
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.3px' }}>
+                {user.category}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -1519,69 +1666,208 @@ const MarketCard: FC<{ market: any; onMarketClick: (id: number) => void; feature
   );
 };
 
-const BetModal: FC<{ market: any; onClose: () => void }> = ({ market, onClose }) => {
+const BetModal: FC<{ market: any; onClose: () => void; initialSide?: 'yes' | 'no' }> = ({ market, onClose, initialSide }) => {
+  const { publicKey, sendTransaction } = useWallet();
+  const { connection } = useConnection();
   const [betAmount, setBetAmount] = useState('');
-  const [betSide, setBetSide] = useState<'yes' | 'no'>('yes');
+  const [betSide, setBetSide] = useState<'yes' | 'no'>(initialSide || 'yes');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [txSignature, setTxSignature] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const potentialWin = betAmount
+    ? betSide === 'yes'
+      ? (parseFloat(betAmount) / (market.yesPercent / 100)).toFixed(0)
+      : (parseFloat(betAmount) / ((100 - market.yesPercent) / 100)).toFixed(0)
+    : '0';
+
+  const handleBet = async () => {
+    if (!publicKey) { setErrorMsg('Please connect your wallet first.'); setStatus('error'); return; }
+    if (!betAmount || parseFloat(betAmount) <= 0) { setErrorMsg('Please enter a valid amount.'); setStatus('error'); return; }
+    setStatus('loading');
+    setErrorMsg('');
+    try {
+      const { PublicKey, Transaction, SystemProgram } = await import('@solana/web3.js');
+      const { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } = await import('@solana/spl-token');
+
+      const PROGRAM_ID = new PublicKey('HJkUBA1W9Dcd83WC7CiCXpdZRc3iHQy7Pwp355jGWmNj');
+      const ORACLE_TOKEN_MINT = new PublicKey('6SnhG4g4icbJ2i9U97zEtxkSc6dZ5Z8sCSTtSJH2QuqA');
+      const MARKET_PDA = new PublicKey('CuvChQETTNKYcnDNJwTQccQkQwJpuK8tqv3KWfwB7Jd2');
+
+      const idl = (await import('./target/idl/oracle_token.json')).default;
+      const { Program, AnchorProvider, BN } = anchor;
+
+      const anchorProvider = new AnchorProvider(
+        connection,
+        { publicKey, signTransaction: async (tx: any) => tx, signAllTransactions: async (txs: any) => txs } as any,
+        { commitment: 'confirmed' }
+      );
+      const program = new Program(idl as any, anchorProvider);
+
+      const [predictionPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from('prediction'), publicKey.toBuffer(), MARKET_PDA.toBuffer()],
+        PROGRAM_ID
+      );
+      const [userProfile] = PublicKey.findProgramAddressSync(
+        [Buffer.from('profile'), publicKey.toBuffer()],
+        PROGRAM_ID
+      );
+
+      const userTokenAccount = await getAssociatedTokenAddress(ORACLE_TOKEN_MINT, publicKey);
+      const marketVault = await getAssociatedTokenAddress(ORACLE_TOKEN_MINT, MARKET_PDA, true);
+
+      const optionIndex = betSide === 'yes' ? 0 : 1;
+      const amount = new BN(Math.floor(parseFloat(betAmount)));
+
+      // Create user profile if it doesn't exist
+      const transaction = new Transaction();
+      const profileInfo = await connection.getAccountInfo(userProfile);
+      if (!profileInfo) {
+        const createProfileIx = await (program.methods as any)
+          .createUserProfile()
+          .accounts({
+            userProfile,
+            user: publicKey,
+            systemProgram: SystemProgram.programId,
+          })
+          .instruction();
+        transaction.add(createProfileIx);
+      }
+
+      const ix = await (program.methods as any)
+        .makePrediction(optionIndex, amount)
+        .accounts({
+          prediction: predictionPDA,
+          market: MARKET_PDA,
+          userProfile,
+          user: publicKey,
+          userTokenAccount,
+          marketVault,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        })
+        .instruction();
+
+      transaction.add(ix);
+      const { blockhash } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = publicKey;
+
+      const signature = await sendTransaction(transaction, connection);
+      await connection.confirmTransaction(signature, 'confirmed');
+      setTxSignature(signature);
+      setStatus('success');
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Transaction failed. Please try again.');
+      setStatus('error');
+    }
+  };
+
+  if (status === 'success') {
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '16px', fontFamily: "'DM Sans', sans-serif" }} onClick={onClose}>
+        <div style={{ background: '#0e0e0e', border: '1px solid rgba(34,197,94,0.2)', borderRadius: '12px', padding: '32px', maxWidth: '420px', width: '100%', textAlign: 'center' as const }} onClick={e => e.stopPropagation()}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: '20px' }}>✓</div>
+          <div style={{ fontSize: '18px', fontWeight: 500, color: 'white', marginBottom: '6px', letterSpacing: '-0.3px' }}>Prediction Placed</div>
+          <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', marginBottom: '24px' }}>
+            You predicted <span style={{ color: betSide === 'yes' ? 'rgba(34,197,94,0.9)' : 'rgba(249,115,22,0.9)', fontFamily: "'DM Mono', monospace" }}>{betSide === 'yes' ? 'YES' : 'NO'}</span> on this market
+          </div>
+
+          <div style={{ border: '1px solid rgba(255,255,255,0.07)', borderRadius: '8px', padding: '16px', marginBottom: '16px', textAlign: 'left' as const }}>
+            <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', marginBottom: '14px', lineHeight: 1.5 }}>{market.question}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              {[{ label: 'Amount', value: parseFloat(betAmount).toLocaleString() + ' OT', color: 'rgba(255,255,255,0.6)' }, { label: 'Potential Win', value: parseFloat(potentialWin).toLocaleString() + ' OT', color: 'rgba(34,197,94,0.8)' }].map((s, i) => (
+                <div key={i}>
+                  <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.25)', letterSpacing: '1px', textTransform: 'uppercase' as const, marginBottom: '4px' }}>{s.label}</div>
+                  <div style={{ fontSize: '14px', fontWeight: 500, color: s.color }}>{s.value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ border: '1px solid rgba(34,197,94,0.12)', borderRadius: '8px', padding: '12px 16px', marginBottom: '20px', background: 'rgba(34,197,94,0.04)' }}>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(34,197,94,0.6)', letterSpacing: '1px', textTransform: 'uppercase' as const, marginBottom: '6px' }}>Transaction Confirmed</div>
+            <a href={`https://explorer.solana.com/tx/${txSignature}?cluster=devnet`} target="_blank" rel="noopener noreferrer" style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', color: 'rgba(139,92,246,0.7)', textDecoration: 'none', wordBreak: 'break-all' as const }}>
+              {txSignature.slice(0, 20)}...{txSignature.slice(-8)} ↗
+            </a>
+          </div>
+
+          <button onClick={onClose} style={{ width: '100%', padding: '11px', borderRadius: '7px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.6)', fontSize: '13px', fontFamily: "'DM Sans', sans-serif", cursor: 'pointer', letterSpacing: '0.1px' }}>Done</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-gradient-to-br from-gray-900 to-gray-800 border border-purple-500/30 rounded-2xl p-8 max-w-md w-full shadow-2xl" onClick={e => e.stopPropagation()}>
-        <h2 className="text-2xl font-bold text-white mb-4">Place Your Prediction</h2>
-        <p className="text-gray-300 mb-6">{market.question}</p>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '16px', fontFamily: "'DM Sans', sans-serif" }} onClick={onClose}>
+      <div style={{ background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '28px', maxWidth: '420px', width: '100%' }} onClick={e => e.stopPropagation()}>
+        <style>{`
+          .bm-yes-btn:hover { background: rgba(34,197,94,0.12) !important; border-color: rgba(34,197,94,0.4) !important; }
+          .bm-no-btn:hover { background: rgba(249,115,22,0.12) !important; border-color: rgba(249,115,22,0.4) !important; }
+          .bm-amt:hover { background: rgba(255,255,255,0.08) !important; color: rgba(255,255,255,0.7) !important; }
+          .bm-confirm:hover { background: rgba(255,255,255,0.08) !important; }
+          .bm-confirm:disabled { opacity: 0.35 !important; cursor: not-allowed !important; }
+        `}</style>
 
-        <div className="flex space-x-4 mb-6">
-          <button
-            onClick={() => setBetSide('yes')}
-            className={`flex-1 py-3 rounded-lg font-bold transition-all ${
-              betSide === 'yes'
-                ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg'
-                : 'bg-gray-700 text-gray-400'
-            }`}
-          >
-            Yes {market.yesPercent}%
-          </button>
-          <button
-            onClick={() => setBetSide('no')}
-            className={`flex-1 py-3 rounded-lg font-bold transition-all ${
-              betSide === 'no'
-                ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg'
-                : 'bg-gray-700 text-gray-400'
-            }`}
-          >
-            No {100 - market.yesPercent}%
-          </button>
-        </div>
-
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-300 mb-2">Amount (Oracle Tokens)</label>
-          <input
-            type="number"
-            value={betAmount}
-            onChange={e => setBetAmount(e.target.value)}
-            placeholder="Enter amount..."
-            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-          />
-        </div>
-
-        <div className="bg-gray-700/50 rounded-lg p-4 mb-6">
-          <div className="flex justify-between text-sm mb-2">
-            <span className="text-gray-400">Potential Win</span>
-            <span className="text-green-400 font-bold">
-              {betAmount ? (parseFloat(betAmount) * 1.8).toFixed(0) : '0'} Tokens
-            </span>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <div>
+            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', letterSpacing: '2px', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase' as const, marginBottom: '4px' }}>Place Prediction</div>
+            <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.4, maxWidth: '320px' }}>{market.question}</div>
           </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-400">Early Bird Bonus</span>
-            <span className="text-purple-400 font-bold">+50%</span>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.25)', fontSize: '20px', cursor: 'pointer', padding: '0 0 0 16px', lineHeight: 1, flexShrink: 0 }}>×</button>
+        </div>
+
+        <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', marginBottom: '20px' }} />
+
+        {/* Yes/No toggle */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '20px' }}>
+          <button className="bm-yes-btn" onClick={() => setBetSide('yes')} style={{ padding: '12px', borderRadius: '7px', border: betSide === 'yes' ? '1px solid rgba(34,197,94,0.4)' : '1px solid rgba(255,255,255,0.07)', background: betSide === 'yes' ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.03)', color: betSide === 'yes' ? 'rgba(34,197,94,0.9)' : 'rgba(255,255,255,0.3)', fontFamily: "'DM Mono', monospace", fontSize: '12px', letterSpacing: '0.5px', cursor: 'pointer', transition: 'all 0.15s' }}>
+            YES · {market.yesPercent}%
+          </button>
+          <button className="bm-no-btn" onClick={() => setBetSide('no')} style={{ padding: '12px', borderRadius: '7px', border: betSide === 'no' ? '1px solid rgba(249,115,22,0.4)' : '1px solid rgba(255,255,255,0.07)', background: betSide === 'no' ? 'rgba(249,115,22,0.1)' : 'rgba(255,255,255,0.03)', color: betSide === 'no' ? 'rgba(249,115,22,0.9)' : 'rgba(255,255,255,0.3)', fontFamily: "'DM Mono', monospace", fontSize: '12px', letterSpacing: '0.5px', cursor: 'pointer', transition: 'all 0.15s' }}>
+            NO · {100 - market.yesPercent}%
+          </button>
+        </div>
+
+        {/* Amount input */}
+        <div style={{ marginBottom: '16px' }}>
+          <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.25)', letterSpacing: '1.5px', textTransform: 'uppercase' as const, marginBottom: '8px' }}>Amount · Oracle Tokens</div>
+          <input type="number" value={betAmount} onChange={e => setBetAmount(e.target.value)} placeholder="0" min="1" style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '7px', padding: '11px 14px', color: 'white', fontSize: '16px', fontFamily: "'DM Mono', monospace", outline: 'none', boxSizing: 'border-box' as const, letterSpacing: '-0.3px' }} />
+          <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
+            {[50, 100, 250, 500].map(amt => (
+              <button key={amt} className="bm-amt" onClick={() => setBetAmount(String(amt))} style={{ flex: 1, padding: '6px', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.3)', fontFamily: "'DM Mono', monospace", fontSize: '11px', cursor: 'pointer', transition: 'all 0.15s' }}>{amt}</button>
+            ))}
           </div>
         </div>
 
-        <button
-          onClick={onClose}
-          className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-4 rounded-lg transition-all shadow-lg"
-        >
-          Confirm Prediction
+        {/* Summary */}
+        <div style={{ border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '14px', marginBottom: '16px' }}>
+          {[
+            { label: 'Prediction', value: `${betSide === 'yes' ? 'YES' : 'NO'} @ ${betSide === 'yes' ? market.yesPercent : 100 - market.yesPercent}%`, color: betSide === 'yes' ? 'rgba(34,197,94,0.8)' : 'rgba(249,115,22,0.8)' },
+            { label: 'Amount', value: (betAmount || '0') + ' OT', color: 'rgba(255,255,255,0.6)' },
+            { label: 'Potential Win', value: potentialWin + ' OT', color: 'rgba(34,197,94,0.8)', border: true },
+          ].map((row, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: row.border ? '10px' : 0, marginTop: row.border ? '10px' : 0, borderTop: row.border ? '1px solid rgba(255,255,255,0.06)' : 'none', marginBottom: i < 2 ? '8px' : 0 }}>
+              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '11px', color: 'rgba(255,255,255,0.25)', letterSpacing: '0.5px' }}>{row.label}</span>
+              <span style={{ fontFamily: "'DM Mono', monospace", fontSize: '12px', color: row.color, fontWeight: 500 }}>{row.value}</span>
+            </div>
+          ))}
+        </div>
+
+        {status === 'error' && (
+          <div style={{ border: '1px solid rgba(239,68,68,0.2)', borderRadius: '7px', padding: '10px 14px', marginBottom: '14px', background: 'rgba(239,68,68,0.05)', fontFamily: "'DM Sans', sans-serif", fontSize: '12px', color: 'rgba(239,68,68,0.8)' }}>{errorMsg}</div>
+        )}
+
+        {/* Confirm button */}
+        <button onClick={handleBet} disabled={status === 'loading' || !betAmount} className="bm-confirm" style={{ width: '100%', padding: '12px', borderRadius: '7px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.7)', fontSize: '13px', fontFamily: "'DM Mono', monospace", cursor: 'pointer', transition: 'all 0.15s', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+          {status === 'loading' ? (
+            <><svg style={{ animation: 'spin 1s linear infinite', width: '14px', height: '14px' }} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path style={{ opacity: 0.75 }} fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg><span>CONFIRMING ON SOLANA</span></>
+          ) : <span>CONFIRM PREDICTION 🔮</span>}
         </button>
+        <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '10px', color: 'rgba(255,255,255,0.15)', textAlign: 'center' as const, marginTop: '10px', letterSpacing: '0.5px' }}>
+          DEVNET · ~0.001 SOL NETWORK FEE
+        </div>
       </div>
     </div>
   );
