@@ -1,5 +1,4 @@
 node_modules/
-target/
 .DS_Store
 *.log
 dist/
@@ -7,3 +6,7 @@ build/
 .env
 .anchor/
 test-ledger/
+target/deps
+target/bpfel-unknown-unknown
+target/debug
+target/release
