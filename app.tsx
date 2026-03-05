@@ -664,8 +664,132 @@ const ActivityPage: FC = () => {
   );
 };
 
+// ─── Analytics ────────────────────────────────────────────────────────────────
+const AnalyticsPage: FC = () => {
+  const pnlData = [
+    { month:'Oct', val: 120 }, { month:'Nov', val: 340 }, { month:'Dec', val: 180 },
+    { month:'Jan', val: 520 }, { month:'Feb', val: 390 }, { month:'Mar', val: 710 },
+  ];
+  const categoryData = [
+    { cat:'Crypto', wins:8, total:11 }, { cat:'Politics', wins:3, total:7 },
+    { cat:'AI', wins:5, total:6 }, { cat:'Sports', wins:2, total:5 }, { cat:'Finance', wins:4, total:5 },
+  ];
+  const volumeData = [
+    { label:'Crypto', pct:42, color:'#7c3aed' }, { label:'Politics', pct:23, color:'#4f46e5' },
+    { label:'AI', pct:18, color:'#06b6d4' }, { label:'Sports', pct:10, color:'#10b981' },
+    { label:'Finance', pct:7, color:'#f59e0b' },
+  ];
+  const maxPnl = Math.max(...pnlData.map(d=>d.val));
+  const totalWins = categoryData.reduce((s,d)=>s+d.wins,0);
+  const totalBets = categoryData.reduce((s,d)=>s+d.total,0);
+  const totalPnl = pnlData.reduce((s,d)=>s+d.val,0);
+
+  const donutR = 60, donutCx = 80, donutCy = 80, donutStroke = 20;
+  const circumference = 2 * Math.PI * donutR;
+  let offset = 0;
+  const donutSlices = volumeData.map(d => {
+    const len = (d.pct / 100) * circumference;
+    const slice = { ...d, dashArray: `${len} ${circumference - len}`, dashOffset: -offset };
+    offset += len;
+    return slice;
+  });
+
+  const card = (children: React.ReactNode, extraStyle?: React.CSSProperties) => (
+    <div style={{ background:'rgba(13,13,43,.8)', border:'1px solid rgba(139,92,246,.15)', borderRadius:14, padding:'22px 24px', ...extraStyle }}>{children}</div>
+  );
+
+  return (
+    <div style={{ maxWidth:1200, margin:'0 auto', padding:'32px 28px', fontFamily:"'Space Grotesk',sans-serif" }}>
+      <div style={{ fontSize:10, letterSpacing:3, color:'rgba(139,92,246,.7)', textTransform:'uppercase', marginBottom:8 }}>Overview</div>
+      <h1 style={{ fontSize:28, fontWeight:700, color:'white', letterSpacing:-.5, marginBottom:24 }}>
+        Analytics <span style={{ color:'rgba(255,255,255,.3)', fontWeight:300 }}>· performance</span>
+      </h1>
+
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:24 }}>
+        {[
+          { l:'Total P&L', v:'+'+totalPnl+' OCT', c:'#10b981' },
+          { l:'Win Rate', v:((totalWins/totalBets)*100).toFixed(0)+'%', c:'#7c3aed' },
+          { l:'Total Bets', v:String(totalBets), c:'white' },
+          { l:'Avg ROI', v:'+34.2%', c:'#06b6d4' },
+        ].map((s,i)=>(
+          <div key={i} style={{ background:'rgba(13,13,43,.8)', border:'1px solid rgba(139,92,246,.15)', borderRadius:14, padding:'22px 24px' }}>
+            <div style={{ fontSize:10, color:'rgba(255,255,255,.3)', letterSpacing:2, textTransform:'uppercase', marginBottom:8 }}>{s.l}</div>
+            <div style={{ fontSize:26, fontWeight:700, color:s.c, letterSpacing:-.5 }}>{s.v}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 320px', gap:16, marginBottom:16 }}>
+        {card(
+          <>
+            <div style={{ fontSize:13, fontWeight:600, color:'rgba(255,255,255,.6)', marginBottom:20 }}>P&amp;L Over Time (OCT)</div>
+            <div style={{ display:'flex', alignItems:'flex-end', gap:10, height:160 }}>
+              {pnlData.map((d,i)=>(
+                <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
+                  <div style={{ fontSize:10, color:'rgba(255,255,255,.35)', marginBottom:2 }}>+{d.val}</div>
+                  <div style={{ width:'100%', height:(d.val/maxPnl)*130+'px', borderRadius:'4px 4px 0 0', background:'linear-gradient(180deg,#7c3aed,rgba(124,58,237,.25))', boxShadow:'0 0 12px rgba(124,58,237,.3)' }} />
+                  <div style={{ fontSize:10, color:'rgba(255,255,255,.25)', paddingTop:4 }}>{d.month}</div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {card(
+          <>
+            <div style={{ fontSize:13, fontWeight:600, color:'rgba(255,255,255,.6)', marginBottom:16 }}>Volume by Category</div>
+            <div style={{ display:'flex', alignItems:'center', gap:20 }}>
+              <svg width={160} height={160} style={{ flexShrink:0 }}>
+                <circle cx={donutCx} cy={donutCy} r={donutR} fill="none" stroke="rgba(255,255,255,.04)" strokeWidth={donutStroke} />
+                {donutSlices.map((s,i)=>(
+                  <circle key={i} cx={donutCx} cy={donutCy} r={donutR} fill="none"
+                    stroke={s.color} strokeWidth={donutStroke}
+                    strokeDasharray={s.dashArray} strokeDashoffset={s.dashOffset}
+                    style={{ transform:'rotate(-90deg)', transformOrigin:`${donutCx}px ${donutCy}px` }} />
+                ))}
+                <text x={donutCx} y={donutCy-6} textAnchor="middle" fill="white" fontSize={18} fontWeight={700}>42%</text>
+                <text x={donutCx} y={donutCy+12} textAnchor="middle" fill="rgba(255,255,255,.35)" fontSize={9}>Crypto</text>
+              </svg>
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                {volumeData.map((d,i)=>(
+                  <div key={i} style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    <div style={{ width:8, height:8, borderRadius:2, background:d.color, flexShrink:0 }} />
+                    <span style={{ fontSize:12, color:'rgba(255,255,255,.5)', width:56 }}>{d.label}</span>
+                    <span style={{ fontSize:12, fontWeight:600, color:'white' }}>{d.pct}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {card(
+        <>
+          <div style={{ fontSize:13, fontWeight:600, color:'rgba(255,255,255,.6)', marginBottom:20 }}>Win Rate by Category</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            {categoryData.map((d,i)=>{
+              const rate = (d.wins/d.total)*100;
+              return (
+                <div key={i} style={{ display:'grid', gridTemplateColumns:'90px 1fr 70px 60px', alignItems:'center', gap:14 }}>
+                  <div style={{ fontSize:13, color:'rgba(255,255,255,.7)', fontWeight:500 }}>{d.cat}</div>
+                  <div style={{ height:6, background:'rgba(255,255,255,.06)', borderRadius:3, overflow:'hidden' }}>
+                    <div style={{ height:'100%', width:rate+'%', borderRadius:3, background:'linear-gradient(90deg,#7c3aed,#06b6d4)', boxShadow:'0 0 8px rgba(124,58,237,.4)' }} />
+                  </div>
+                  <div style={{ fontSize:12, color:'rgba(255,255,255,.35)', textAlign:'right' }}>{d.wins}/{d.total}</div>
+                  <div style={{ fontSize:13, fontWeight:700, color:rate>=60?'#10b981':rate>=40?'#f59e0b':'#ef4444', textAlign:'right' }}>{rate.toFixed(0)}%</div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
 // ─── Navbar ───────────────────────────────────────────────────────────────────
-type Page = 'markets'|'leaderboard'|'activity'|'create';
+type Page = 'markets'|'leaderboard'|'activity'|'analytics'|'create';
 
 const Navbar: FC<{ page:Page; setPage:(p:Page)=>void; octBalance:number; connected:boolean }> = ({ page, setPage, octBalance, connected }) => (
   <header style={{ position:'sticky', top:0, zIndex:50, background:'rgba(6,6,26,.92)', backdropFilter:'blur(16px)', borderBottom:'1px solid rgba(139,92,246,.15)', fontFamily:"'Space Grotesk',sans-serif" }}>
@@ -677,7 +801,7 @@ const Navbar: FC<{ page:Page; setPage:(p:Page)=>void; octBalance:number; connect
       </div>
       {/* Nav */}
       <nav style={{ display:'flex', gap:4 }}>
-        {([['markets','Markets'],['leaderboard','Leaderboard'],['activity','Activity']] as const).map(([p,l])=>(
+        {([['markets','Markets'],['leaderboard','Leaderboard'],['activity','Activity'],['analytics','Analytics']] as const).map(([p,l])=>(
           <button key={p} onClick={()=>setPage(p)} className={`nav-btn${page===p?' active':''}`} style={{ background:'none', border:'none', padding:'8px 16px', color: page===p?'white':'rgba(255,255,255,.5)', fontSize:14, cursor:'pointer', fontFamily:"'Space Grotesk',sans-serif", fontWeight: page===p?600:400 }}>{l}</button>
         ))}
       </nav>
@@ -741,6 +865,7 @@ const MainApp: FC = () => {
       {page==='markets' && <MarketsPage />}
       {page==='leaderboard' && <LeaderboardPage octBalance={octBalance} />}
       {page==='activity' && <ActivityPage />}
+      {page==='analytics' && <AnalyticsPage />}
       {page==='create' && <CreateMarketPage />}
     </>
   );
