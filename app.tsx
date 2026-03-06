@@ -284,7 +284,7 @@ const MarketCard: FC<{ market: any; featured?: boolean }> = ({ market, featured 
       <div className="trend-card" style={{ background: market.gradient, border:'1px solid rgba(139,92,246,.25)', borderRadius:14, padding:20, position:'relative', overflow:'hidden', minHeight:160 }}>
         <div style={{ position:'absolute', inset:0, background:'radial-gradient(circle at 70% 50%,rgba(139,92,246,.15),transparent 60%)' }} />
         <div style={{ position:'relative', zIndex:1 }}>
-          <div style={{ fontSize:22, marginBottom:8 }}>{market.emoji}</div>
+          <div style={{ fontSize:22, marginBottom:8, color:'white' }}>{market.emoji}</div>
           <div style={{ fontSize:15, fontWeight:600, color:'white', marginBottom:12, lineHeight:1.4 }}>{market.question}</div>
           <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
             <span style={{ fontSize:13, color:'rgba(255,255,255,.5)' }}>YES</span>
@@ -304,7 +304,7 @@ const MarketCard: FC<{ market: any; featured?: boolean }> = ({ market, featured 
     <>
       <div className="mkt-card" style={{ background:'linear-gradient(135deg,rgba(13,13,43,.9),rgba(19,19,58,.9))', border:'1px solid rgba(139,92,246,.18)', borderRadius:14, padding:18, position:'relative', overflow:'hidden' }}>
         <div style={{ position:'absolute', top:0, left:0, right:0, height:'2px', background:`linear-gradient(90deg,transparent,rgba(139,92,246,.4),transparent)` }} />
-        <div style={{ fontSize:24, marginBottom:10 }}>{market.emoji}</div>
+        <div style={{ fontSize:24, marginBottom:10, color:'white' }}>{market.emoji}</div>
         <div style={{ fontSize:13, fontWeight:500, color:'rgba(255,255,255,.85)', marginBottom:14, lineHeight:1.45, minHeight:40 }}>{market.question}</div>
 
         <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
