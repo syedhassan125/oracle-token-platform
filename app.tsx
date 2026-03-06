@@ -13,6 +13,9 @@ const HELIUS_RPC = 'https://devnet.helius-rpc.com/?api-key=bb6da2ff-6316-4784-9e
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 const CATEGORIES = ['All', 'Crypto', 'Politics', 'AI', 'Sports', 'Finance'];
+const CAT_ICONS: Record<string, string> = {
+  'All': '✦', 'Crypto': '₿', 'Politics': '🗳️', 'AI': '🤖', 'Sports': '🏆', 'Finance': '📈', 'Science': '🌙'
+};
 
 const MARKETS = [
   { id: 1, question: "Will Ethereum ETF be approved?", category: "Crypto", yesPercent: 78, volume: "$3.2M", volumeNum: 3200000, ends: "220d", participants: 4312, emoji: "⟠", gradient: "linear-gradient(135deg,#1a1a4e,#2d1b69,#1a0a3e)" },
@@ -94,10 +97,14 @@ const GLOBAL_CSS = `
   .nav-btn:hover{color:white!important}
   .nav-btn.active{color:white!important}
   .nav-btn.active::after{content:'';position:absolute;bottom:-16px;left:0;right:0;height:2px;background:linear-gradient(90deg,#7c3aed,#06b6d4);border-radius:2px}
-  .mkt-card{transition:all .25s;cursor:pointer}
-  .mkt-card:hover{transform:translateY(-3px)!important;box-shadow:0 12px 40px rgba(139,92,246,.25)!important}
-  .trend-card{transition:all .25s;cursor:pointer}
-  .trend-card:hover{transform:translateY(-4px)!important}
+  @keyframes skeletonPulse{0%,100%{opacity:.4}50%{opacity:.9}}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes livePulse{0%{transform:scale(1);opacity:1}70%{transform:scale(2.2);opacity:0}100%{transform:scale(1);opacity:0}}
+  .mkt-card{transition:transform .25s,box-shadow .25s,border-color .25s;cursor:pointer;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+  .mkt-card:hover{transform:translateY(-6px)!important;box-shadow:0 24px 60px rgba(124,58,237,.35),0 0 0 1px rgba(139,92,246,.35)!important;border-color:rgba(139,92,246,.4)!important}
+  .trend-card{transition:transform .25s,box-shadow .25s;cursor:pointer;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+  .trend-card:hover{transform:translateY(-6px)!important;box-shadow:0 20px 50px rgba(124,58,237,.3)!important}
+  .skeleton{background:linear-gradient(90deg,rgba(255,255,255,.04) 25%,rgba(255,255,255,.09) 50%,rgba(255,255,255,.04) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:6px}
   .buy-btn{transition:all .2s}
   .buy-btn:hover{transform:translateY(-1px)!important;filter:brightness(1.15)!important}
   .cat-btn{transition:all .2s}
@@ -274,14 +281,16 @@ const BetModal: FC<{ market: any; onClose: () => void }> = ({ market, onClose })
 };
 
 // ─── Market Card ──────────────────────────────────────────────────────────────
-const MarketCard: FC<{ market: any; featured?: boolean }> = ({ market, featured }) => {
+const MarketCard: FC<{ market: any; featured?: boolean; delay?: number }> = ({ market, featured, delay = 0 }) => {
   const [modal, setModal] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const yesColor = market.yesPercent >= 50 ? '#00d4aa' : '#ff6b6b';
   const noColor = market.yesPercent < 50 ? '#00d4aa' : '#ff6b6b';
+  useEffect(() => { const t = setTimeout(() => setMounted(true), 80 + delay * 60); return () => clearTimeout(t); }, [delay]);
 
   if (featured) return (
     <>
-      <div className="trend-card" style={{ background: market.gradient, border:'1px solid rgba(139,92,246,.25)', borderRadius:14, padding:20, position:'relative', overflow:'hidden', minHeight:160 }}>
+      <div className="trend-card" style={{ background: market.gradient, border:'1px solid rgba(139,92,246,.25)', borderRadius:14, padding:20, position:'relative', overflow:'hidden', minHeight:160, animation:`fadeUp .4s ease ${delay*0.08}s both` }}>
         <div style={{ position:'absolute', inset:0, background:'radial-gradient(circle at 70% 50%,rgba(139,92,246,.15),transparent 60%)' }} />
         <div style={{ position:'relative', zIndex:1 }}>
           <div style={{ fontSize:22, marginBottom:8, color:'white' }}>{market.emoji}</div>
@@ -302,8 +311,9 @@ const MarketCard: FC<{ market: any; featured?: boolean }> = ({ market, featured 
 
   return (
     <>
-      <div className="mkt-card" style={{ background:'linear-gradient(135deg,rgba(13,13,43,.9),rgba(19,19,58,.9))', border:'1px solid rgba(139,92,246,.18)', borderRadius:14, padding:18, position:'relative', overflow:'hidden' }}>
-        <div style={{ position:'absolute', top:0, left:0, right:0, height:'2px', background:`linear-gradient(90deg,transparent,rgba(139,92,246,.4),transparent)` }} />
+      <div className="mkt-card" style={{ background:'rgba(13,13,43,.45)', border:'1px solid rgba(139,92,246,.18)', borderRadius:14, padding:18, position:'relative', overflow:'hidden', animation:`fadeUp .4s ease ${delay*0.06}s both` }}>
+        <div style={{ position:'absolute', top:0, left:0, right:0, height:'1px', background:`linear-gradient(90deg,transparent,rgba(139,92,246,.5),transparent)` }} />
+        <div style={{ position:'absolute', inset:0, background:'linear-gradient(135deg,rgba(139,92,246,.04),transparent 60%)', pointerEvents:'none' }} />
         <div style={{ fontSize:24, marginBottom:10, color:'white' }}>{market.emoji}</div>
         <div style={{ fontSize:13, fontWeight:500, color:'rgba(255,255,255,.85)', marginBottom:14, lineHeight:1.45, minHeight:40 }}>{market.question}</div>
 
@@ -316,11 +326,17 @@ const MarketCard: FC<{ market: any; featured?: boolean }> = ({ market, featured 
         </div>
 
         <div style={{ height:3, background:'rgba(255,255,255,.06)', borderRadius:2, marginBottom:12, overflow:'hidden' }}>
-          <div style={{ height:'100%', width:market.yesPercent+'%', background:`linear-gradient(90deg,${yesColor},rgba(0,212,170,.3))`, borderRadius:2 }} />
+          <div style={{ height:'100%', width: mounted ? market.yesPercent+'%' : '0%', background:`linear-gradient(90deg,${yesColor},rgba(0,212,170,.3))`, borderRadius:2, transition:'width .9s cubic-bezier(.4,0,.2,1)', boxShadow:`0 0 8px ${yesColor}55` }} />
         </div>
 
-        <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'rgba(255,255,255,.35)', marginBottom:14 }}>
-          <span>{market.volume}</span>
+        <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'rgba(255,255,255,.35)', marginBottom:14, alignItems:'center' }}>
+          <span style={{ display:'flex', alignItems:'center', gap:5 }}>
+            <span style={{ position:'relative', display:'inline-block', width:6, height:6 }}>
+              <span style={{ position:'absolute', inset:0, borderRadius:'50%', background:'#22c55e', animation:'livePulse 2s ease-out infinite' }} />
+              <span style={{ position:'absolute', inset:0, borderRadius:'50%', background:'#22c55e' }} />
+            </span>
+            {market.volume}
+          </span>
           <span>Ends in {market.ends}</span>
         </div>
 
@@ -435,7 +451,7 @@ const CreateMarketPage: FC = () => {
 };
 
 // ─── Markets Home ─────────────────────────────────────────────────────────────
-const MarketsPage: FC = () => {
+const MarketsPage: FC<{ connected: boolean }> = ({ connected }) => {
   const [cat, setCat] = useState('All');
   const [tick, setTick] = useState(0);
 
@@ -448,6 +464,26 @@ const MarketsPage: FC = () => {
   return (
     <div style={{ maxWidth:1240, margin:'0 auto', padding:'28px 28px', fontFamily:"'Space Grotesk',sans-serif" }}>
 
+      {/* Disconnected hero banner */}
+      {!connected && (
+        <div style={{ textAlign:'center', padding:'48px 24px 40px', marginBottom:32, background:'rgba(13,13,43,.45)', backdropFilter:'blur(12px)', border:'1px solid rgba(139,92,246,.2)', borderRadius:20, position:'relative', overflow:'hidden', animation:'fadeUp .5s ease both' }}>
+          <div style={{ position:'absolute', inset:0, background:'radial-gradient(ellipse at 50% 0%,rgba(124,58,237,.12),transparent 60%)', pointerEvents:'none' }} />
+          <div style={{ position:'absolute', top:0, left:0, right:0, height:'1px', background:'linear-gradient(90deg,transparent,rgba(139,92,246,.6),transparent)' }} />
+          <div style={{ fontSize:48, marginBottom:16, animation:'float 4s ease-in-out infinite' }}>🔮</div>
+          <h2 style={{ fontSize:28, fontWeight:700, color:'white', letterSpacing:-.5, marginBottom:10 }}>Predict the Future. Earn OCT.</h2>
+          <p style={{ fontSize:15, color:'rgba(255,255,255,.45)', marginBottom:28, maxWidth:460, margin:'0 auto 28px' }}>Trade on real-world outcomes using Oracle Tokens on Solana devnet. Connect your wallet to place predictions.</p>
+          <div style={{ display:'flex', justifyContent:'center', gap:32, marginBottom:28 }}>
+            {[{v:'$24.7M',l:'Total Volume'},{v:'2,841',l:'Active Traders'},{v:String(MARKETS.length),l:'Open Markets'}].map((s,i)=>(
+              <div key={i} style={{ textAlign:'center' }}>
+                <div style={{ fontSize:22, fontWeight:700, color:'white', letterSpacing:-.5 }}>{s.v}</div>
+                <div style={{ fontSize:11, color:'rgba(255,255,255,.35)', letterSpacing:1.5, textTransform:'uppercase', marginTop:2 }}>{s.l}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize:13, color:'rgba(255,255,255,.3)' }}>↑ Connect wallet using the button in the top right</div>
+        </div>
+      )}
+
       {/* Trending */}
       <div style={{ marginBottom:32 }}>
         <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
@@ -455,20 +491,22 @@ const MarketsPage: FC = () => {
           <h2 style={{ fontSize:18, fontWeight:700, color:'white', letterSpacing:-.3 }}>Trending Markets</h2>
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14 }}>
-          {TRENDING.map(m=><MarketCard key={m.id} market={m} featured />)}
+          {TRENDING.map((m,i)=><MarketCard key={m.id} market={m} featured delay={i} />)}
         </div>
       </div>
 
       {/* Category filter */}
       <div style={{ display:'flex', gap:6, marginBottom:20, flexWrap:'wrap' }}>
         {CATEGORIES.map(c=>(
-          <button key={c} onClick={()=>setCat(c)} className="cat-btn" style={{ padding:'7px 18px', borderRadius:20, border:`1px solid ${cat===c?'rgba(139,92,246,.7)':'rgba(255,255,255,.1)'}`, background: cat===c?'rgba(139,92,246,.2)':'transparent', color: cat===c?'white':'rgba(255,255,255,.5)', fontSize:13, fontWeight: cat===c?600:400, cursor:'pointer', fontFamily:"'Space Grotesk',sans-serif", transition:'all .2s' }}>{c}</button>
+          <button key={c} onClick={()=>setCat(c)} className="cat-btn" style={{ padding:'7px 16px', borderRadius:20, border:`1px solid ${cat===c?'rgba(139,92,246,.7)':'rgba(255,255,255,.1)'}`, background: cat===c?'rgba(139,92,246,.2)':'transparent', color: cat===c?'white':'rgba(255,255,255,.5)', fontSize:13, fontWeight: cat===c?600:400, cursor:'pointer', fontFamily:"'Space Grotesk',sans-serif", transition:'all .2s', display:'flex', alignItems:'center', gap:5 }}>
+            <span style={{ fontSize:11 }}>{CAT_ICONS[c]||'•'}</span>{c}
+          </button>
         ))}
       </div>
 
       {/* Markets grid */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:36 }}>
-        {filtered.slice(0,8).map(m=><MarketCard key={m.id} market={m} />)}
+        {filtered.slice(0,8).map((m,i)=><MarketCard key={m.id} market={m} delay={i} />)}
       </div>
 
       {/* Bottom row */}
@@ -812,10 +850,15 @@ const Navbar: FC<{ page:Page; setPage:(p:Page)=>void; octBalance:number; connect
           onMouseOut={e=>{(e.currentTarget as any).style.background='rgba(139,92,246,.1)'}}>
           + Create Market
         </button>
-        {connected && octBalance > 0 && (
-          <div style={{ display:'flex', alignItems:'center', gap:8, background:'rgba(139,92,246,.1)', border:'1px solid rgba(139,92,246,.25)', borderRadius:20, padding:'6px 14px' }}>
-            <div style={{ width:7, height:7, borderRadius:'50%', background:'#22c55e', boxShadow:'0 0 6px #22c55e' }} />
-            <span style={{ fontSize:13, fontWeight:600, color:'white' }}>{octBalance.toLocaleString()}</span>
+        {connected && (
+          <div style={{ display:'flex', alignItems:'center', gap:8, background:'rgba(139,92,246,.1)', border:'1px solid rgba(139,92,246,.25)', borderRadius:20, padding:'6px 14px', transition:'all .4s' }}>
+            <div style={{ position:'relative', width:7, height:7 }}>
+              <div style={{ position:'absolute', inset:0, borderRadius:'50%', background:'#22c55e', animation:'livePulse 2s ease-out infinite' }} />
+              <div style={{ position:'absolute', inset:0, borderRadius:'50%', background:'#22c55e' }} />
+            </div>
+            <span style={{ fontSize:13, fontWeight:600, color:'white', fontVariantNumeric:'tabular-nums', minWidth: octBalance>0?undefined:'16px' }}>
+              {octBalance > 0 ? octBalance.toLocaleString() : '—'}
+            </span>
             <span style={{ fontSize:11, color:'rgba(255,255,255,.4)' }}>OCT</span>
           </div>
         )}
@@ -823,6 +866,27 @@ const Navbar: FC<{ page:Page; setPage:(p:Page)=>void; octBalance:number; connect
       </div>
     </div>
   </header>
+);
+
+// ─── Footer ───────────────────────────────────────────────────────────────────
+const Footer: FC = () => (
+  <footer style={{ borderTop:'1px solid rgba(139,92,246,.1)', marginTop:64, padding:'24px 28px', fontFamily:"'Space Grotesk',sans-serif" }}>
+    <div style={{ maxWidth:1240, margin:'0 auto', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:16 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+        <div style={{ width:24, height:24, borderRadius:'50%', background:'linear-gradient(135deg,#7c3aed,#4f46e5)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12 }}>🔮</div>
+        <span style={{ fontSize:13, fontWeight:600, color:'rgba(255,255,255,.5)' }}>ORACLE</span>
+        <span style={{ fontSize:11, color:'rgba(255,255,255,.2)', padding:'2px 8px', borderRadius:4, border:'1px solid rgba(255,255,255,.08)', background:'rgba(255,255,255,.03)' }}>DEVNET</span>
+      </div>
+      <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
+        <div style={{ fontSize:10, color:'rgba(255,255,255,.2)', letterSpacing:1.5, textTransform:'uppercase' }}>Program ID</div>
+        <code style={{ fontSize:11, color:'rgba(139,92,246,.6)', fontFamily:'monospace', letterSpacing:.5 }}>HJkUBA1W9Dcd83WC7CiCXpdZRc3iHQy7Pwp355jGWmNj</code>
+      </div>
+      <div style={{ display:'flex', alignItems:'center', gap:16 }}>
+        <a href="https://explorer.solana.com/address/HJkUBA1W9Dcd83WC7CiCXpdZRc3iHQy7Pwp355jGWmNj?cluster=devnet" target="_blank" rel="noopener noreferrer" style={{ fontSize:12, color:'rgba(139,92,246,.6)', textDecoration:'none' }}>Explorer ↗</a>
+        <span style={{ fontSize:11, color:'rgba(255,255,255,.15)' }}>Built on Solana · Anchor 0.30.1</span>
+      </div>
+    </div>
+  </footer>
 );
 
 // ─── Background ───────────────────────────────────────────────────────────────
@@ -862,11 +926,12 @@ const MainApp: FC = () => {
       <style>{GLOBAL_CSS}</style>
       <SpaceBg />
       <Navbar page={page} setPage={setPage} octBalance={octBalance} connected={connected} />
-      {page==='markets' && <MarketsPage />}
+      {page==='markets' && <MarketsPage connected={connected} />}
       {page==='leaderboard' && <LeaderboardPage octBalance={octBalance} />}
       {page==='activity' && <ActivityPage />}
       {page==='analytics' && <AnalyticsPage />}
       {page==='create' && <CreateMarketPage />}
+      <Footer />
     </>
   );
 };
