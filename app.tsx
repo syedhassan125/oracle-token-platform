@@ -18,18 +18,18 @@ const CAT_ICONS: Record<string, string> = {
 };
 
 const MARKETS = [
-  { id: 1, question: "Will Ethereum ETF be approved?", category: "Crypto", yesPercent: 78, volume: "$3.2M", volumeNum: 3200000, ends: "220d", participants: 4312, emoji: "⟠", gradient: "linear-gradient(135deg,#1a1a4e,#2d1b69,#1a0a3e)" },
-  { id: 2, question: "Trump to win 2028 Election?", category: "Politics", yesPercent: 45, volume: "$5.1M", volumeNum: 5100000, ends: "680d", participants: 8901, emoji: "🗳️", gradient: "linear-gradient(135deg,#1a0a0a,#3d0a1e,#1a0a2e)" },
-  { id: 3, question: "BTC to hit $150k by 2026?", category: "Crypto", yesPercent: 61, volume: "$4.8M", volumeNum: 4800000, ends: "290d", participants: 6234, emoji: "₿", gradient: "linear-gradient(135deg,#0a1a1a,#0a2d3d,#1a0a3e)" },
-  { id: 4, question: "Will Solana hit $500 in 2026?", category: "Crypto", yesPercent: 68, volume: "$1.2M", volumeNum: 1200000, ends: "220d", participants: 2341, emoji: "◎", gradient: "linear-gradient(135deg,#0a1a2e,#1a2d4e,#0a1a3e)" },
-  { id: 5, question: "Is NASA going back to the Moon?", category: "Science", yesPercent: 55, volume: "$890K", volumeNum: 890000, ends: "180d", participants: 1892, emoji: "🌙", gradient: "linear-gradient(135deg,#0a0a2e,#1a1a4e,#0a1a3e)" },
-  { id: 6, question: "Will AI pass the Turing Test?", category: "AI", yesPercent: 71, volume: "$2.1M", volumeNum: 2100000, ends: "75d", participants: 3102, emoji: "🤖", gradient: "linear-gradient(135deg,#0a1a0a,#1a2d1a,#0a1a2e)" },
-  { id: 7, question: "Will S&P 500 hit 6,500?", category: "Finance", yesPercent: 62, volume: "$1.8M", volumeNum: 1800000, ends: "30d", participants: 2567, emoji: "📈", gradient: "linear-gradient(135deg,#1a1a0a,#2d2d0a,#1a0a3e)" },
-  { id: 8, question: "Lakers win NBA Championship?", category: "Sports", yesPercent: 34, volume: "$980K", volumeNum: 980000, ends: "120d", participants: 1654, emoji: "🏀", gradient: "linear-gradient(135deg,#1a0a0a,#3d1a0a,#1a0a3e)" },
-  { id: 9, question: "Fed cuts rates 3+ times?", category: "Finance", yesPercent: 61, volume: "$2.3M", volumeNum: 2300000, ends: "300d", participants: 2103, emoji: "🏦", gradient: "linear-gradient(135deg,#0a1a1a,#0a2d2d,#0a1a3e)" },
-  { id: 10, question: "Apple releases AR glasses?", category: "AI", yesPercent: 83, volume: "$1.6M", volumeNum: 1600000, ends: "400d", participants: 3210, emoji: "🥽", gradient: "linear-gradient(135deg,#1a1a1a,#2d2d2d,#1a1a3e)" },
-  { id: 11, question: "Dogecoin reaches $1?", category: "Crypto", yesPercent: 19, volume: "$650K", volumeNum: 650000, ends: "365d", participants: 987, emoji: "🐕", gradient: "linear-gradient(135deg,#1a1a0a,#2d2d1a,#1a1a0a)" },
-  { id: 12, question: "Republicans win Senate?", category: "Politics", yesPercent: 58, volume: "$4.1M", volumeNum: 4100000, ends: "245d", participants: 6789, emoji: "🏛️", gradient: "linear-gradient(135deg,#1a0a1a,#2d1a2d,#0a0a2e)" },
+  { id: 1, question: "Will Ethereum ETF be approved?", category: "Crypto", yesPercent: 78, volume: "$3.2M", volumeNum: 3200000, ends: "220d", participants: 4312, icon: "eth", gradient: "linear-gradient(135deg,#1a1a4e,#2d1b69,#1a0a3e)" },
+  { id: 2, question: "Trump to win 2028 Election?", category: "Politics", yesPercent: 45, volume: "$5.1M", volumeNum: 5100000, ends: "680d", participants: 8901, icon: "vote", gradient: "linear-gradient(135deg,#1a0a0a,#3d0a1e,#1a0a2e)" },
+  { id: 3, question: "BTC to hit $150k by 2026?", category: "Crypto", yesPercent: 61, volume: "$4.8M", volumeNum: 4800000, ends: "290d", participants: 6234, icon: "btc", gradient: "linear-gradient(135deg,#0a1a1a,#0a2d3d,#1a0a3e)" },
+  { id: 4, question: "Will Solana hit $500 in 2026?", category: "Crypto", yesPercent: 68, volume: "$1.2M", volumeNum: 1200000, ends: "220d", participants: 2341, icon: "sol", gradient: "linear-gradient(135deg,#0a1a2e,#1a2d4e,#0a1a3e)" },
+  { id: 5, question: "Is NASA going back to the Moon?", category: "Science", yesPercent: 55, volume: "$890K", volumeNum: 890000, ends: "180d", participants: 1892, icon: "planet", gradient: "linear-gradient(135deg,#0a0a2e,#1a1a4e,#0a1a3e)" },
+  { id: 6, question: "Will AI pass the Turing Test?", category: "AI", yesPercent: 71, volume: "$2.1M", volumeNum: 2100000, ends: "75d", participants: 3102, icon: "ai", gradient: "linear-gradient(135deg,#0a1a0a,#1a2d1a,#0a1a2e)" },
+  { id: 7, question: "Will S&P 500 hit 6,500?", category: "Finance", yesPercent: 62, volume: "$1.8M", volumeNum: 1800000, ends: "30d", participants: 2567, icon: "chart", gradient: "linear-gradient(135deg,#1a1a0a,#2d2d0a,#1a0a3e)" },
+  { id: 8, question: "Lakers win NBA Championship?", category: "Sports", yesPercent: 34, volume: "$980K", volumeNum: 980000, ends: "120d", participants: 1654, icon: "sports", gradient: "linear-gradient(135deg,#1a0a0a,#3d1a0a,#1a0a3e)" },
+  { id: 9, question: "Fed cuts rates 3+ times?", category: "Finance", yesPercent: 61, volume: "$2.3M", volumeNum: 2300000, ends: "300d", participants: 2103, icon: "finance", gradient: "linear-gradient(135deg,#0a1a1a,#0a2d2d,#0a1a3e)" },
+  { id: 10, question: "Apple releases AR glasses?", category: "AI", yesPercent: 83, volume: "$1.6M", volumeNum: 1600000, ends: "400d", participants: 3210, icon: "ar", gradient: "linear-gradient(135deg,#1a1a1a,#2d2d2d,#1a1a3e)" },
+  { id: 11, question: "Dogecoin reaches $1?", category: "Crypto", yesPercent: 19, volume: "$650K", volumeNum: 650000, ends: "365d", participants: 987, icon: "doge", gradient: "linear-gradient(135deg,#1a1a0a,#2d2d1a,#1a1a0a)" },
+  { id: 12, question: "Republicans win Senate?", category: "Politics", yesPercent: 58, volume: "$4.1M", volumeNum: 4100000, ends: "245d", participants: 6789, icon: "vote", gradient: "linear-gradient(135deg,#1a0a1a,#2d1a2d,#0a0a2e)" },
 ];
 
 const TRENDING = [MARKETS[0], MARKETS[1], MARKETS[2]];
@@ -80,7 +80,15 @@ const GLOBAL_CSS = `
   @keyframes starField{from{transform:translateY(0)}to{transform:translateY(-50%)}}
   @keyframes glow{0%,100%{box-shadow:0 0 20px rgba(139,92,246,.3)}50%{box-shadow:0 0 40px rgba(139,92,246,.6)}}
   @keyframes slideIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-  @keyframes scanline{0%{transform:translateY(-100%)}100%{transform:translateY(100vh)}}
+  @keyframes scanline{0%{transform:translateX(-100%)}100%{transform:translateX(100vw)}}
+  @keyframes rotateCube{from{transform:rotateX(20deg) rotateY(0deg)}to{transform:rotateX(20deg) rotateY(360deg)}}
+  @keyframes orbitRing1{from{transform:rotateX(75deg) rotateZ(0deg)}to{transform:rotateX(75deg) rotateZ(360deg)}}
+  @keyframes orbitRing2{from{transform:rotateX(20deg) rotateZ(0deg)}to{transform:rotateX(20deg) rotateZ(360deg)}}
+  @keyframes orbitRing3{from{transform:rotateX(50deg) rotateY(60deg) rotateZ(0deg)}to{transform:rotateX(50deg) rotateY(60deg) rotateZ(360deg)}}
+  @keyframes glitch1{0%,90%,100%{clip-path:inset(50% 0 50% 0);transform:translate(0)}10%{clip-path:inset(10% 0 80% 0);transform:translate(-4px,1px)}20%{clip-path:inset(60% 0 30% 0);transform:translate(4px,-1px)}30%{clip-path:inset(30% 0 60% 0);transform:translate(-2px,2px)}40%{clip-path:inset(80% 0 10% 0);transform:translate(3px)}}
+  @keyframes glitch2{0%,90%,100%{clip-path:inset(50% 0 50% 0);transform:translate(0)}10%{clip-path:inset(80% 0 10% 0);transform:translate(4px,-1px)}20%{clip-path:inset(20% 0 70% 0);transform:translate(-4px,1px)}30%{clip-path:inset(60% 0 25% 0);transform:translate(2px,-2px)}40%{clip-path:inset(10% 0 80% 0);transform:translate(-3px)}}
+  @keyframes gridFade{from{opacity:0}to{opacity:1}}
+  @keyframes bracketIn{from{opacity:0;transform:scale(1.3)}to{opacity:1;transform:scale(1)}}
   .wallet-adapter-button{
     background:linear-gradient(135deg,#7c3aed,#4f46e5)!important;
     border:none!important;border-radius:10px!important;
@@ -122,49 +130,197 @@ const GLOBAL_CSS = `
 const Splash: FC<{ onDone: () => void }> = ({ onDone }) => {
   const [pct, setPct] = useState(0);
   const [out, setOut] = useState(false);
+
   useEffect(() => {
-    const t0 = Date.now(); const dur = 2600;
+    const t0 = Date.now(); const dur = 3200;
     const tick = () => {
-      const p = Math.min((Date.now()-t0)/dur,1);
-      const e = p<.5?2*p*p:-1+(4-2*p)*p;
+      const p = Math.min((Date.now()-t0)/dur, 1);
+      const e = p<.5 ? 2*p*p : -1+(4-2*p)*p;
       setPct(Math.floor(e*100));
-      if(p<1) requestAnimationFrame(tick);
-      else { setOut(true); setTimeout(onDone, 600); }
+      if (p<1) requestAnimationFrame(tick);
+      else { setOut(true); setTimeout(onDone, 900); }
     };
     requestAnimationFrame(tick);
   }, [onDone]);
 
+  const phase = pct<25?'ESTABLISHING CONNECTION':pct<50?'LOADING ORACLE DATA':pct<75?'SYNCING BLOCKCHAIN':pct<95?'CALIBRATING MARKETS':'READY';
+
+  const cubeFaces = [
+    { transform:'translateZ(32px)',  bg:'rgba(124,58,237,.18)', border:'rgba(124,58,237,.8)' },
+    { transform:'translateZ(-32px)', bg:'rgba(124,58,237,.08)', border:'rgba(124,58,237,.4)' },
+    { transform:'rotateY(90deg) translateZ(32px)',  bg:'rgba(6,182,212,.12)', border:'rgba(6,182,212,.6)' },
+    { transform:'rotateY(-90deg) translateZ(32px)', bg:'rgba(6,182,212,.12)', border:'rgba(6,182,212,.6)' },
+    { transform:'rotateX(90deg) translateZ(32px)',  bg:'rgba(245,158,11,.08)', border:'rgba(245,158,11,.5)' },
+    { transform:'rotateX(-90deg) translateZ(32px)', bg:'rgba(245,158,11,.08)', border:'rgba(245,158,11,.5)' },
+  ];
+
   return (
-    <div style={{ position:'fixed', inset:0, zIndex:9999, background:'#06061a', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', opacity: out?0:1, transition:'opacity .6s', fontFamily:"'Space Grotesk',sans-serif" }}>
+    <div style={{ position:'fixed', inset:0, zIndex:9999, background:'#06061a', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', opacity:out?0:1, transition:'opacity .9s ease', fontFamily:"'Space Grotesk',sans-serif", overflow:'hidden' }}>
       <style>{GLOBAL_CSS}</style>
-      {/* Stars */}
-      {Array.from({length:60}).map((_,i)=>(
-        <div key={i} style={{ position:'absolute', width: Math.random()*2+1+'px', height: Math.random()*2+1+'px', borderRadius:'50%', background:'white', top: Math.random()*100+'%', left: Math.random()*100+'%', opacity: Math.random()*.7+.1, animation:`pulse ${Math.random()*3+2}s ease-in-out infinite` }} />
+
+      {/* Hex grid background */}
+      <div style={{ position:'absolute', inset:0, backgroundImage:'linear-gradient(rgba(139,92,246,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(139,92,246,.07) 1px,transparent 1px)', backgroundSize:'48px 48px', WebkitMaskImage:'radial-gradient(ellipse 70% 70% at 50% 50%,black 40%,transparent 100%)', maskImage:'radial-gradient(ellipse 70% 70% at 50% 50%,black 40%,transparent 100%)', animation:'gridFade 1.5s ease forwards' }} />
+
+      {/* Ambient glow */}
+      <div style={{ position:'absolute', width:700, height:700, borderRadius:'50%', background:'radial-gradient(circle,rgba(124,58,237,.1),transparent 70%)', filter:'blur(80px)', top:'50%', left:'50%', transform:'translate(-50%,-50%)', pointerEvents:'none' }} />
+
+      {/* Horizontal scanline */}
+      <div style={{ position:'absolute', top:'30%', left:0, width:'100%', height:'1px', background:'linear-gradient(90deg,transparent,rgba(6,182,212,.7),rgba(124,58,237,.9),rgba(6,182,212,.7),transparent)', animation:'scanline 2.4s linear infinite' }} />
+
+      {/* Corner brackets */}
+      {([
+        {top:24,left:24,borderTop:'2px solid rgba(139,92,246,.6)',borderLeft:'2px solid rgba(139,92,246,.6)'},
+        {top:24,right:24,borderTop:'2px solid rgba(139,92,246,.6)',borderRight:'2px solid rgba(139,92,246,.6)'},
+        {bottom:24,left:24,borderBottom:'2px solid rgba(139,92,246,.6)',borderLeft:'2px solid rgba(139,92,246,.6)'},
+        {bottom:24,right:24,borderBottom:'2px solid rgba(139,92,246,.6)',borderRight:'2px solid rgba(139,92,246,.6)'},
+      ] as React.CSSProperties[]).map((s,i)=>(
+        <div key={i} style={{ position:'absolute', width:32, height:32, animation:'bracketIn .6s ease both', animationDelay:`${i*0.08}s`, ...s }} />
       ))}
-      {/* Glow orbs */}
-      <div style={{ position:'absolute', width:500, height:500, borderRadius:'50%', background:'radial-gradient(circle,rgba(124,58,237,.15),transparent 70%)', filter:'blur(60px)', top:'20%', left:'30%' }} />
-      <div style={{ position:'absolute', width:300, height:300, borderRadius:'50%', background:'radial-gradient(circle,rgba(6,182,212,.1),transparent 70%)', filter:'blur(40px)', top:'50%', left:'60%' }} />
-      {/* Scanline */}
-      <div style={{ position:'absolute', top:0, left:0, right:0, height:'2px', background:'linear-gradient(90deg,transparent,rgba(124,58,237,.6),transparent)', animation:'scanline 3s linear infinite' }} />
-      {/* Logo */}
-      <div style={{ position:'relative', marginBottom:24 }}>
-        <div style={{ width:80, height:80, borderRadius:'50%', background:'linear-gradient(135deg,#7c3aed,#4f46e5)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:36, boxShadow:'0 0 60px rgba(124,58,237,.6)', animation:'glow 2s ease-in-out infinite', marginBottom:20, margin:'0 auto 20px' }}>🔮</div>
-        <div style={{ textAlign:'center', fontSize:32, fontWeight:700, background:'linear-gradient(90deg,#a78bfa,#38bdf8,#a78bfa)', backgroundSize:'200%', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', animation:'shimmer 3s linear infinite', letterSpacing:4 }}>ORACLE</div>
-        <div style={{ textAlign:'center', fontSize:11, letterSpacing:4, color:'rgba(255,255,255,.3)', marginTop:6 }}>PREDICTION MARKETS · SOLANA</div>
+
+      {/* 3D orbital system */}
+      <div style={{ position:'relative', width:220, height:220, marginBottom:36, display:'flex', alignItems:'center', justifyContent:'center', perspective:600, perspectiveOrigin:'center' }}>
+
+        {/* Orbital rings */}
+        <div style={{ position:'absolute', width:200, height:200, borderRadius:'50%', border:'1px solid rgba(124,58,237,.55)', boxShadow:'0 0 12px rgba(124,58,237,.2)', animation:'orbitRing1 3.5s linear infinite', transformStyle:'preserve-3d' }} />
+        <div style={{ position:'absolute', width:164, height:164, borderRadius:'50%', border:'1px solid rgba(6,182,212,.45)', boxShadow:'0 0 10px rgba(6,182,212,.15)', animation:'orbitRing2 5.5s linear infinite reverse' }} />
+        <div style={{ position:'absolute', width:130, height:130, borderRadius:'50%', border:'1px solid rgba(245,158,11,.35)', animation:'orbitRing3 4s linear infinite' }} />
+
+        {/* Orbiting dot on ring 1 */}
+        <div style={{ position:'absolute', width:200, height:200, animation:'orbitRing1 3.5s linear infinite', borderRadius:'50%' }}>
+          <div style={{ position:'absolute', top:'-4px', left:'50%', transform:'translateX(-50%)', width:8, height:8, borderRadius:'50%', background:'#7c3aed', boxShadow:'0 0 16px #7c3aed, 0 0 30px rgba(124,58,237,.5)' }} />
+        </div>
+        {/* Orbiting dot on ring 2 */}
+        <div style={{ position:'absolute', width:164, height:164, animation:'orbitRing2 5.5s linear infinite reverse', borderRadius:'50%' }}>
+          <div style={{ position:'absolute', top:'-3px', left:'50%', transform:'translateX(-50%)', width:6, height:6, borderRadius:'50%', background:'#06b6d4', boxShadow:'0 0 12px #06b6d4' }} />
+        </div>
+
+        {/* 3D cube */}
+        <div style={{ width:64, height:64, position:'relative', transformStyle:'preserve-3d', animation:'rotateCube 6s linear infinite' }}>
+          {cubeFaces.map((f,i)=>(
+            <div key={i} style={{ position:'absolute', width:64, height:64, transform:f.transform, background:f.bg, border:`1px solid ${f.border}`, boxShadow:`inset 0 0 20px ${f.border}44` }} />
+          ))}
+          {/* Inner glow core */}
+          <div style={{ position:'absolute', inset:8, background:'radial-gradient(circle,rgba(124,58,237,.6),transparent)', borderRadius:4, transform:'translateZ(0)' }} />
+        </div>
       </div>
-      {/* Counter */}
-      <div style={{ marginTop:40, fontSize:72, fontWeight:300, color:'white', letterSpacing:-4, fontVariantNumeric:'tabular-nums', textShadow:'0 0 30px rgba(124,58,237,.5)' }}>
-        {String(pct).padStart(3,'0')}<span style={{ fontSize:20, color:'rgba(255,255,255,.3)', marginLeft:4 }}>%</span>
+
+      {/* Logo with glitch effect */}
+      <div style={{ textAlign:'center', marginBottom:44, position:'relative' }}>
+        <div style={{ fontSize:10, letterSpacing:6, color:'rgba(6,182,212,.7)', textTransform:'uppercase', marginBottom:12, fontWeight:500 }}>Solana Prediction Markets</div>
+        <div style={{ position:'relative', display:'inline-block' }}>
+          {/* Base text */}
+          <div style={{ fontSize:36, fontWeight:700, letterSpacing:8, color:'white', textTransform:'uppercase', textShadow:'0 0 40px rgba(124,58,237,.4)' }}>ORACLE MARKET</div>
+          {/* Glitch layer 1 */}
+          <div style={{ position:'absolute', inset:0, fontSize:36, fontWeight:700, letterSpacing:8, color:'#7c3aed', textTransform:'uppercase', animation:'glitch1 5s ease-in-out infinite', mixBlendMode:'screen' }}>ORACLE MARKET</div>
+          {/* Glitch layer 2 */}
+          <div style={{ position:'absolute', inset:0, fontSize:36, fontWeight:700, letterSpacing:8, color:'#06b6d4', textTransform:'uppercase', animation:'glitch2 5s ease-in-out 0.5s infinite', mixBlendMode:'screen' }}>ORACLE MARKET</div>
+        </div>
       </div>
-      {/* Bar */}
-      <div style={{ width:260, height:2, background:'rgba(255,255,255,.08)', marginTop:20, borderRadius:1, overflow:'hidden' }}>
-        <div style={{ height:'100%', width:pct+'%', background:'linear-gradient(90deg,#7c3aed,#06b6d4)', transition:'width .016s linear', boxShadow:'0 0 10px rgba(124,58,237,.8)' }} />
-      </div>
-      <div style={{ marginTop:14, fontSize:10, letterSpacing:3, color:'rgba(255,255,255,.25)' }}>
-        {pct<30?'CONNECTING TO SOLANA':pct<60?'LOADING MARKETS':pct<90?'SYNCING ORACLE DATA':'READY TO PREDICT'}
+
+      {/* Progress section */}
+      <div style={{ width:320, textAlign:'center' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+          <div style={{ fontSize:9, letterSpacing:3, color:'rgba(255,255,255,.3)', textTransform:'uppercase' }}>{phase}</div>
+          <div style={{ fontSize:11, letterSpacing:2, color:'rgba(139,92,246,.8)', fontVariantNumeric:'tabular-nums', fontWeight:600 }}>{String(pct).padStart(3,'0')}%</div>
+        </div>
+        <div style={{ height:1, background:'rgba(255,255,255,.06)', borderRadius:1, overflow:'hidden', position:'relative' }}>
+          <div style={{ height:'100%', width:pct+'%', background:'linear-gradient(90deg,#7c3aed,#06b6d4)', transition:'width .016s linear', boxShadow:'0 0 14px rgba(124,58,237,.9), 0 0 4px rgba(6,182,212,.6)' }} />
+        </div>
+        {/* Segment ticks */}
+        <div style={{ display:'flex', justifyContent:'space-between', marginTop:6, padding:'0 1px' }}>
+          {[0,25,50,75,100].map(n=>(
+            <div key={n} style={{ fontSize:8, color: pct>=n?'rgba(139,92,246,.6)':'rgba(255,255,255,.12)', letterSpacing:.5, transition:'color .3s' }}>{n}</div>
+          ))}
+        </div>
       </div>
     </div>
   );
+};
+
+// ─── Market Icons (SVG) ───────────────────────────────────────────────────────
+const MarketIcon: FC<{ type: string; size?: number }> = ({ type, size = 36 }) => {
+  const s = { width:size, height:size, display:'block', flexShrink:0 };
+  const icons: Record<string, JSX.Element> = {
+    eth: (
+      <svg style={s} viewBox="0 0 36 36" fill="none">
+        <polygon points="18,4 6,18 18,22 30,18" fill="rgba(124,58,237,.25)" stroke="#7c3aed" strokeWidth="1.4" strokeLinejoin="round"/>
+        <polygon points="18,25 6,18 18,32 30,18" fill="rgba(124,58,237,.12)" stroke="#7c3aed" strokeWidth="1.4" strokeLinejoin="round"/>
+        <line x1="18" y1="4" x2="18" y2="32" stroke="rgba(124,58,237,.3)" strokeWidth="1"/>
+      </svg>
+    ),
+    btc: (
+      <svg style={s} viewBox="0 0 36 36" fill="none">
+        <circle cx="18" cy="18" r="13" stroke="#f59e0b" strokeWidth="1.4"/>
+        <path d="M14 11.5h6a3.5 3.5 0 010 7H14m0 0h6.5a3.5 3.5 0 010 7H14m0-14v14m3-15v16" stroke="#f59e0b" strokeWidth="1.4" strokeLinecap="round"/>
+      </svg>
+    ),
+    sol: (
+      <svg style={s} viewBox="0 0 36 36" fill="none">
+        <defs><linearGradient id="solG" x1="0" y1="0" x2="36" y2="36"><stop stopColor="#9945ff"/><stop offset="1" stopColor="#14f195"/></linearGradient></defs>
+        <path d="M9 25h18l-3 3H6l3-3zM6 16.5h21l-3 3H9l-3-3zM9 8h18l-3 3H6l3-3z" fill="url(#solG)" opacity=".9"/>
+      </svg>
+    ),
+    vote: (
+      <svg style={s} viewBox="0 0 36 36" fill="none">
+        <path d="M5 31h26M8 31V17M13 31V17M23 31V17M28 31V17M18 5L4 17h28L18 5Z" stroke="#a78bfa" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+        <rect x="15" y="20" width="6" height="11" stroke="#a78bfa" strokeWidth="1.4"/>
+      </svg>
+    ),
+    ai: (
+      <svg style={s} viewBox="0 0 36 36" fill="none">
+        <circle cx="18" cy="18" r="4" stroke="#06b6d4" strokeWidth="1.4"/>
+        <circle cx="7" cy="10" r="2.5" stroke="#06b6d4" strokeWidth="1.4"/>
+        <circle cx="29" cy="10" r="2.5" stroke="#06b6d4" strokeWidth="1.4"/>
+        <circle cx="7" cy="26" r="2.5" stroke="#06b6d4" strokeWidth="1.4"/>
+        <circle cx="29" cy="26" r="2.5" stroke="#06b6d4" strokeWidth="1.4"/>
+        <path d="M9.5 11.5L14.5 15.5M21.5 15.5L26.5 11.5M9.5 24.5L14.5 20.5M21.5 20.5L26.5 24.5" stroke="#06b6d4" strokeWidth="1.2" strokeLinecap="round"/>
+      </svg>
+    ),
+    chart: (
+      <svg style={s} viewBox="0 0 36 36" fill="none">
+        <polyline points="5,28 11,20 17,24 23,14 29,10" stroke="#10b981" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+        <polyline points="25,10 29,10 29,14" stroke="#10b981" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+        <line x1="5" y1="28" x2="31" y2="28" stroke="rgba(16,185,129,.3)" strokeWidth="1"/>
+      </svg>
+    ),
+    sports: (
+      <svg style={s} viewBox="0 0 36 36" fill="none">
+        <circle cx="18" cy="18" r="13" stroke="#f59e0b" strokeWidth="1.4"/>
+        <path d="M18 5c3 4 3 9 0 13s-3 9 0 13M5 18c4-3 9-3 13 0s9 3 13 0" stroke="#f59e0b" strokeWidth="1.2" strokeLinecap="round"/>
+      </svg>
+    ),
+    finance: (
+      <svg style={s} viewBox="0 0 36 36" fill="none">
+        <rect x="6" y="20" width="5" height="10" rx="1" fill="rgba(139,92,246,.3)" stroke="#7c3aed" strokeWidth="1.2"/>
+        <rect x="15.5" y="14" width="5" height="16" rx="1" fill="rgba(139,92,246,.3)" stroke="#7c3aed" strokeWidth="1.2"/>
+        <rect x="25" y="8" width="5" height="22" rx="1" fill="rgba(139,92,246,.4)" stroke="#7c3aed" strokeWidth="1.2"/>
+        <path d="M8 18l7-7 7 4 8-8" stroke="#06b6d4" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+    planet: (
+      <svg style={s} viewBox="0 0 36 36" fill="none">
+        <circle cx="18" cy="18" r="7" stroke="#a78bfa" strokeWidth="1.4"/>
+        <ellipse cx="18" cy="18" rx="16" ry="5.5" stroke="#a78bfa" strokeWidth="1.2" opacity=".7"/>
+        <ellipse cx="18" cy="18" rx="16" ry="5.5" stroke="#a78bfa" strokeWidth="1.2" opacity=".4" transform="rotate(60 18 18)"/>
+      </svg>
+    ),
+    ar: (
+      <svg style={s} viewBox="0 0 36 36" fill="none">
+        <rect x="4" y="13" width="28" height="12" rx="6" stroke="#06b6d4" strokeWidth="1.4"/>
+        <circle cx="13" cy="19" r="3" stroke="#06b6d4" strokeWidth="1.4"/>
+        <circle cx="23" cy="19" r="3" stroke="#06b6d4" strokeWidth="1.4"/>
+        <path d="M16 19h4M1 19h3M32 19h3" stroke="#06b6d4" strokeWidth="1.4" strokeLinecap="round"/>
+      </svg>
+    ),
+    doge: (
+      <svg style={s} viewBox="0 0 36 36" fill="none">
+        <circle cx="18" cy="18" r="13" stroke="#f59e0b" strokeWidth="1.4"/>
+        <path d="M13 12h7a6 6 0 010 12h-7V12Z" stroke="#f59e0b" strokeWidth="1.4" strokeLinejoin="round"/>
+        <line x1="11" y1="18" x2="20" y2="18" stroke="#f59e0b" strokeWidth="1.4" strokeLinecap="round"/>
+      </svg>
+    ),
+  };
+  return icons[type] || icons['chart'];
 };
 
 // ─── Bet Modal ────────────────────────────────────────────────────────────────
@@ -293,7 +449,7 @@ const MarketCard: FC<{ market: any; featured?: boolean; delay?: number }> = ({ m
       <div className="trend-card" style={{ background: market.gradient, border:'1px solid rgba(139,92,246,.25)', borderRadius:14, padding:20, position:'relative', overflow:'hidden', minHeight:160, animation:`fadeUp .4s ease ${delay*0.08}s both` }}>
         <div style={{ position:'absolute', inset:0, background:'radial-gradient(circle at 70% 50%,rgba(139,92,246,.15),transparent 60%)' }} />
         <div style={{ position:'relative', zIndex:1 }}>
-          <div style={{ fontSize:22, marginBottom:8, color:'white' }}>{market.emoji}</div>
+          <div style={{ marginBottom:10 }}><MarketIcon type={market.icon} size={32} /></div>
           <div style={{ fontSize:15, fontWeight:600, color:'white', marginBottom:12, lineHeight:1.4 }}>{market.question}</div>
           <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
             <span style={{ fontSize:13, color:'rgba(255,255,255,.5)' }}>YES</span>
@@ -314,7 +470,7 @@ const MarketCard: FC<{ market: any; featured?: boolean; delay?: number }> = ({ m
       <div className="mkt-card" style={{ background:'rgba(13,13,43,.45)', border:'1px solid rgba(139,92,246,.18)', borderRadius:14, padding:18, position:'relative', overflow:'hidden', animation:`fadeUp .4s ease ${delay*0.06}s both` }}>
         <div style={{ position:'absolute', top:0, left:0, right:0, height:'1px', background:`linear-gradient(90deg,transparent,rgba(139,92,246,.5),transparent)` }} />
         <div style={{ position:'absolute', inset:0, background:'linear-gradient(135deg,rgba(139,92,246,.04),transparent 60%)', pointerEvents:'none' }} />
-        <div style={{ fontSize:24, marginBottom:10, color:'white' }}>{market.emoji}</div>
+        <div style={{ marginBottom:10 }}><MarketIcon type={market.icon} size={28} /></div>
         <div style={{ fontSize:13, fontWeight:500, color:'rgba(255,255,255,.85)', marginBottom:14, lineHeight:1.45, minHeight:40 }}>{market.question}</div>
 
         <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
@@ -835,7 +991,7 @@ const Navbar: FC<{ page:Page; setPage:(p:Page)=>void; octBalance:number; connect
       {/* Logo */}
       <div style={{ display:'flex', alignItems:'center', gap:12, cursor:'pointer' }} onClick={()=>setPage('markets')}>
         <div style={{ width:32, height:32, borderRadius:'50%', background:'linear-gradient(135deg,#7c3aed,#4f46e5)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, boxShadow:'0 0 16px rgba(124,58,237,.5)' }}>🔮</div>
-        <span style={{ fontSize:16, fontWeight:700, color:'white', letterSpacing:.5 }}>ORACLE</span>
+        <span style={{ fontSize:14, fontWeight:700, color:'white', letterSpacing:.5 }}>ORACLE MARKET</span>
       </div>
       {/* Nav */}
       <nav style={{ display:'flex', gap:4 }}>
@@ -874,7 +1030,7 @@ const Footer: FC = () => (
     <div style={{ maxWidth:1240, margin:'0 auto', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:16 }}>
       <div style={{ display:'flex', alignItems:'center', gap:12 }}>
         <div style={{ width:24, height:24, borderRadius:'50%', background:'linear-gradient(135deg,#7c3aed,#4f46e5)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12 }}>🔮</div>
-        <span style={{ fontSize:13, fontWeight:600, color:'rgba(255,255,255,.5)' }}>ORACLE</span>
+        <span style={{ fontSize:13, fontWeight:600, color:'rgba(255,255,255,.5)' }}>ORACLE MARKET</span>
         <span style={{ fontSize:11, color:'rgba(255,255,255,.2)', padding:'2px 8px', borderRadius:4, border:'1px solid rgba(255,255,255,.08)', background:'rgba(255,255,255,.03)' }}>DEVNET</span>
       </div>
       <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
