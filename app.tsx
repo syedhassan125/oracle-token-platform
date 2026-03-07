@@ -890,7 +890,7 @@ function parseMarketResolution(data: Uint8Array): { resolved: boolean; correctOp
   } catch { return { resolved: false, correctOptionIndex: null }; }
 }
 
-const ClaimRewardsTab: FC = () => {
+const ClaimRewardsTab: FC<{ onBalanceRefresh: () => void }> = ({ onBalanceRefresh }) => {
   const { publicKey, sendTransaction } = useWallet();
   const { connection } = useConnection();
   const [preds, setPreds] = useState<OnChainPred[]>([]);
@@ -967,6 +967,7 @@ const ClaimRewardsTab: FC = () => {
       setClaimTx(t => ({ ...t, [pred.key]: sig }));
       setClaimStatus(s => ({ ...s, [pred.key]: 'claimed' }));
       setPreds(ps => ps.map(p => p.key === pred.key ? { ...p, claimed: true } : p));
+      onBalanceRefresh();
     } catch (err: any) {
       console.error(err);
       setClaimStatus(s => ({ ...s, [pred.key]: 'error' }));
@@ -1073,7 +1074,7 @@ const ClaimRewardsTab: FC = () => {
 };
 
 // ─── Activity / Predictions ───────────────────────────────────────────────────
-const ActivityPage: FC = () => {
+const ActivityPage: FC<{ onBalanceRefresh: () => void }> = ({ onBalanceRefresh }) => {
   const [tab, setTab] = useState<'active'|'claim'|'history'>('active');
   const wins = BET_HISTORY.filter(b=>b.result==='Won').length;
   const pnl = BET_HISTORY.reduce((s,b)=>s+b.profit,0);
@@ -1127,7 +1128,7 @@ const ActivityPage: FC = () => {
         </div>
       )}
 
-      {tab==='claim' && <ClaimRewardsTab />}
+      {tab==='claim' && <ClaimRewardsTab onBalanceRefresh={onBalanceRefresh} />}
 
       {tab==='history' && (
         <div style={{ background:'rgba(13,13,43,.6)', border:'1px solid rgba(139,92,246,.15)', borderRadius:14, overflow:'hidden' }}>
@@ -1494,7 +1495,7 @@ const MainApp: FC = () => {
       <Navbar page={page} setPage={setPage} octBalance={octBalance} connected={connected} />
       {page==='markets' && <MarketsPage connected={connected} />}
       {page==='leaderboard' && <LeaderboardPage octBalance={octBalance} />}
-      {page==='activity' && <ActivityPage />}
+      {page==='activity' && <ActivityPage onBalanceRefresh={fetchOctBalance} />}
       {page==='analytics' && <AnalyticsPage />}
       {page==='create' && <CreateMarketPage />}
       {page==='admin' && <AdminPage />}
