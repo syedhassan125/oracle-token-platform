@@ -257,6 +257,35 @@ pub mod oracle_token {
         Ok(())
     }
 
+    /// Admin-only market resolution — bypasses token requirements and timestamp
+    pub fn admin_resolve_market(
+        ctx: Context<AdminResolveMarket>,
+        correct_option_index: u8,
+    ) -> Result<()> {
+        let market = &mut ctx.accounts.market;
+
+        require!(
+            ctx.accounts.platform_state.authority == ctx.accounts.admin.key(),
+            ErrorCode::Unauthorized
+        );
+        require!(
+            market.status == MarketStatus::Active || market.status == MarketStatus::PendingResolution,
+            ErrorCode::MarketAlreadyResolved
+        );
+        require!(
+            (correct_option_index as usize) < market.options.len(),
+            ErrorCode::InvalidOption
+        );
+
+        market.status = MarketStatus::Resolved;
+        market.correct_option_index = Some(correct_option_index);
+        market.resolver = Some(ctx.accounts.admin.key());
+        market.resolved_at = Some(Clock::get()?.unix_timestamp);
+
+        msg!("Market {} admin-resolved to option {}", market.market_id, correct_option_index);
+        Ok(())
+    }
+
     /// Vote on disputed market resolution
     pub fn dispute_vote(
         ctx: Context<DisputeVote>,
@@ -524,6 +553,21 @@ pub struct CreateUserProfile<'info> {
 }
 
 #[derive(Accounts)]
+pub struct AdminResolveMarket<'info> {
+    #[account(mut)]
+    pub market: Account<'info, Market>,
+
+    #[account(
+        seeds = [b"platform"],
+        bump = platform_state.bump
+    )]
+    pub platform_state: Account<'info, PlatformState>,
+
+    #[account(mut)]
+    pub admin: Signer<'info>,
+}
+
+#[derive(Accounts)]
 pub struct DisputeVote<'info> {
     #[account(mut)]
     pub market: Account<'info, Market>,
@@ -588,6 +632,8 @@ pub enum ErrorCode {
     Unauthorized,
     #[msg("Market is not in dispute state.")]
     MarketNotInDispute,
+    #[msg("Market is already resolved.")]
+    MarketAlreadyResolved,
     #[msg("Insufficient voting power. Need at least 100 tokens.")]
     InsufficientVotingPower,
 }
