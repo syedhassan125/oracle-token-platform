@@ -354,38 +354,71 @@ const BetModal: FC<{ market: any; onClose: () => void }> = ({ market, onClose })
     if (!marketAddr) { setErr('This market is not yet deployed on-chain.'); setStatus('error'); return; }
     setStatus('loading'); setErr('');
     try {
-      const { PublicKey: PK, Transaction, SystemProgram } = await import('@solana/web3.js');
+      const { PublicKey: PK, Transaction, TransactionInstruction, SystemProgram, AccountMeta } = await import('@solana/web3.js');
       const { getAssociatedTokenAddress, TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction, ASSOCIATED_TOKEN_PROGRAM_ID } = await import('@solana/spl-token');
-      const idl = (await import('./src/oracle_token_idl.json')).default;
-      const { Program, AnchorProvider, BN } = anchor;
       const MARKET_PDA = new PK(marketAddr);
-      const provider = new AnchorProvider(connection, { publicKey, signTransaction:async(tx:any)=>tx, signAllTransactions:async(txs:any)=>txs } as any, { commitment:'confirmed' });
-      const program = new Program(idl as any, provider);
       const [predPDA] = PK.findProgramAddressSync([Buffer.from('prediction'),publicKey.toBuffer(),MARKET_PDA.toBuffer()],PROGRAM_ID);
       const [userProfile] = PK.findProgramAddressSync([Buffer.from('profile'),publicKey.toBuffer()],PROGRAM_ID);
       const userTA = await getAssociatedTokenAddress(ORACLE_TOKEN_MINT,publicKey);
       const vault = await getAssociatedTokenAddress(ORACLE_TOKEN_MINT,MARKET_PDA,true);
+
       const tx = new Transaction();
+
+      // createUserProfile if needed — discriminator: [9,214,142,184,153,65,50,174]
       if (!await connection.getAccountInfo(userProfile)) {
-        tx.add(await (program.methods as any).createUserProfile().accounts({ userProfile, user:publicKey, systemProgram:SystemProgram.programId }).instruction());
+        const disc = Buffer.from([9,214,142,184,153,65,50,174]);
+        tx.add(new TransactionInstruction({
+          programId: PROGRAM_ID,
+          keys: [
+            { pubkey: userProfile, isSigner: false, isWritable: true },
+            { pubkey: publicKey,   isSigner: true,  isWritable: true },
+            { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+          ],
+          data: disc,
+        }));
       }
+
+      // createAssociatedTokenAccount for market vault if needed
       if (!await connection.getAccountInfo(vault)) {
         tx.add(createAssociatedTokenAccountInstruction(publicKey, vault, MARKET_PDA, ORACLE_TOKEN_MINT, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID));
       }
-      tx.add(await (program.methods as any).makePrediction(side==='yes'?0:1, new BN(Math.floor(parseFloat(amount)))).accounts({ prediction:predPDA, market:MARKET_PDA, userProfile, user:publicKey, userTokenAccount:userTA, marketVault:vault, tokenProgram:TOKEN_PROGRAM_ID, systemProgram:SystemProgram.programId }).instruction());
+
+      // makePrediction — discriminator: [206,137,238,92,59,16,13,227]
+      // args: option_index (u8) + amount (u64 LE)
+      const disc = Buffer.from([206,137,238,92,59,16,13,227]);
+      const optBuf = Buffer.alloc(1);
+      optBuf.writeUInt8(side==='yes'?0:1, 0);
+      const amtBuf = Buffer.alloc(8);
+      amtBuf.writeBigUInt64LE(BigInt(Math.floor(parseFloat(amount))), 0);
+      tx.add(new TransactionInstruction({
+        programId: PROGRAM_ID,
+        keys: [
+          { pubkey: predPDA,    isSigner: false, isWritable: true },
+          { pubkey: MARKET_PDA, isSigner: false, isWritable: true },
+          { pubkey: userProfile,isSigner: false, isWritable: true },
+          { pubkey: publicKey,  isSigner: true,  isWritable: true },
+          { pubkey: userTA,     isSigner: false, isWritable: true },
+          { pubkey: vault,      isSigner: false, isWritable: true },
+          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        ],
+        data: Buffer.concat([disc, optBuf, amtBuf]),
+      }));
+
       const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
       tx.recentBlockhash=blockhash; tx.feePayer=publicKey;
 
       // Simulate first to get real error logs
-      const sim = await connection.simulateTransaction(tx, { sigVerify: false });
+      const sim = await connection.simulateTransaction(tx, { sigVerify: false } as any);
       if (sim.value.err) {
-        const logs = sim.value.logs?.join('\n') || '';
+        const logs = (sim.value.logs||[]).join('\n');
         const msg = logs.includes('already in use') ? 'You already have a prediction on this market.'
-          : logs.includes('insufficient funds') || logs.includes('0x1') ? 'Insufficient OCT balance.'
+          : logs.includes('insufficient funds')||logs.includes('0x1') ? 'Insufficient OCT balance.'
           : logs.includes('MarketNotActive') ? 'Market is not active.'
           : logs.includes('MarketExpired') ? 'Market has expired.'
           : logs.includes('InvalidOption') ? 'Invalid option selected.'
-          : logs || JSON.stringify(sim.value.err);
+          : logs ? logs.split('\n').find((l:string)=>l.includes('Error')||l.includes('error')) || logs.split('\n').slice(-3).join(' | ')
+          : JSON.stringify(sim.value.err);
         setErr(msg); setStatus('error'); return;
       }
 
