@@ -391,7 +391,7 @@ const BetModal: FC<{ market: any; onClose: () => void }> = ({ market, onClose })
       // makePrediction — discriminator + option_index (u8) + amount (u64 LE)
       const disc   = Buffer.from([206, 137, 238, 92, 59, 16, 13, 227]);
       const optBuf = Buffer.alloc(1); optBuf.writeUInt8(side === 'yes' ? 0 : 1, 0);
-      const amtBuf = Buffer.alloc(8); amtBuf.writeBigUInt64LE(BigInt(Math.floor(parseFloat(amount))), 0);
+      const amtBuf = Buffer.alloc(8); amtBuf.writeBigUInt64LE(BigInt(Math.floor(parseFloat(amount) * 1_000_000)), 0); // OCT has 6 decimals
       tx.add(new TransactionInstruction({
         programId: PROGRAM_ID,
         keys: [
@@ -1008,7 +1008,7 @@ const ClaimRewardsTab: FC<{ onBalanceRefresh: () => void }> = ({ onBalanceRefres
                   <div style={{ fontSize: 10, color: 'rgba(16,185,129,.5)', letterSpacing: .5 }}>Resolved: {pred.correctOptionIndex === 0 ? 'YES' : 'NO'} ✓</div>
                 </div>
                 <div style={{ fontSize: 11, padding: '3px 9px', borderRadius: 5, background: pred.optionIndex === 0 ? 'rgba(16,185,129,.12)' : 'rgba(239,68,68,.12)', color: pred.optionIndex === 0 ? '#10b981' : '#ef4444', fontWeight: 600, display: 'inline-block' }}>{pred.optionIndex === 0 ? 'YES' : 'NO'}</div>
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,.5)', fontWeight: 500 }}>{pred.amount} OCT</div>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,.5)', fontWeight: 500 }}>{(pred.amount / 1_000_000).toFixed(4)} OCT</div>
                 <div>
                   {status === 'claimed' ? (
                     <div style={{ fontSize: 11, color: 'rgba(16,185,129,.7)' }}>✓ Claimed {claimTx[pred.key] && <a href={`https://explorer.solana.com/tx/${claimTx[pred.key]}?cluster=devnet`} target="_blank" rel="noreferrer" style={{ marginLeft: 6, color: 'rgba(139,92,246,.6)', fontSize: 10 }}>tx ↗</a>}</div>
@@ -1035,7 +1035,7 @@ const ClaimRewardsTab: FC<{ onBalanceRefresh: () => void }> = ({ onBalanceRefres
             <div key={pred.key} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 120px', gap: 16, padding: '12px 20px', borderBottom: idx < pending.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none', alignItems: 'center' }}>
               <div style={{ fontSize: 13, color: 'rgba(255,255,255,.5)' }}>{pred.marketTitle}</div>
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', textTransform: 'uppercase' as const }}>{pred.optionIndex === 0 ? 'YES' : 'NO'}</div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.3)' }}>{pred.amount} OCT</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.3)' }}>{(pred.amount / 1_000_000).toFixed(4)} OCT</div>
             </div>
           ))}
         </div>
@@ -1050,7 +1050,7 @@ const ClaimRewardsTab: FC<{ onBalanceRefresh: () => void }> = ({ onBalanceRefres
                 <div style={{ fontSize: 10, color: 'rgba(239,68,68,.35)', marginTop: 2 }}>Resolved: {pred.correctOptionIndex === 0 ? 'YES' : 'NO'}</div>
               </div>
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', textTransform: 'uppercase' as const }}>{pred.optionIndex === 0 ? 'YES' : 'NO'}</div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.2)' }}>{pred.amount} OCT</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.2)' }}>{(pred.amount / 1_000_000).toFixed(4)} OCT</div>
               <div style={{ fontSize: 11, color: 'rgba(239,68,68,.4)' }}>— no payout</div>
             </div>
           ))}
@@ -1063,7 +1063,7 @@ const ClaimRewardsTab: FC<{ onBalanceRefresh: () => void }> = ({ onBalanceRefres
             <div key={pred.key} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 120px 80px', gap: 16, padding: '12px 20px', borderBottom: idx < alreadyClaimed.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none', alignItems: 'center' }}>
               <div style={{ fontSize: 13, color: 'rgba(255,255,255,.3)' }}>{pred.marketTitle}</div>
               <div style={{ fontSize: 11, color: pred.optionIndex === 0 ? 'rgba(16,185,129,.4)' : 'rgba(239,68,68,.4)', textTransform: 'uppercase' as const }}>{pred.optionIndex === 0 ? 'YES' : 'NO'}</div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.2)' }}>{pred.amount} OCT</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.2)' }}>{(pred.amount / 1_000_000).toFixed(4)} OCT</div>
               <div style={{ fontSize: 11, color: 'rgba(16,185,129,.4)' }}>✓ Claimed</div>
             </div>
           ))}
