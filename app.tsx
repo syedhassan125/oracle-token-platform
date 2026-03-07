@@ -926,10 +926,10 @@ const AdminPage: FC = () => {
                 <div style={{ gridColumn:'span 2', textAlign:'right', fontSize:13, color:'rgba(255,255,255,.3)' }}>Market resolved</div>
               ) : (
                 <>
-                  <button onClick={()=>handleResolve(m.id,'YES')} disabled={!!resolving} style={{ padding:'10px 0', borderRadius:10, border:'none', background:'linear-gradient(135deg,rgba(16,185,129,.2),rgba(16,185,129,.1))', border:'1px solid rgba(16,185,129,.3)', color:'#10b981', fontSize:13, fontWeight:700, cursor:resolving?'not-allowed':'pointer', fontFamily:"'Space Grotesk',sans-serif" }}>
+                  <button onClick={()=>handleResolve(m.id,'YES')} disabled={!!resolving} style={{ padding:'10px 0', borderRadius:10, border:'1px solid rgba(16,185,129,.3)', background:'linear-gradient(135deg,rgba(16,185,129,.2),rgba(16,185,129,.1))', color:'#10b981', fontSize:13, fontWeight:700, cursor:resolving?'not-allowed':'pointer', fontFamily:"'Space Grotesk',sans-serif" }}>
                     {resolving===key+'YES' ? 'Resolving…' : '✓ Resolve YES'}
                   </button>
-                  <button onClick={()=>handleResolve(m.id,'NO')} disabled={!!resolving} style={{ padding:'10px 0', borderRadius:10, border:'none', background:'linear-gradient(135deg,rgba(239,68,68,.2),rgba(239,68,68,.1))', border:'1px solid rgba(239,68,68,.3)', color:'#ef4444', fontSize:13, fontWeight:700, cursor:resolving?'not-allowed':'pointer', fontFamily:"'Space Grotesk',sans-serif" }}>
+                  <button onClick={()=>handleResolve(m.id,'NO')} disabled={!!resolving} style={{ padding:'10px 0', borderRadius:10, border:'1px solid rgba(239,68,68,.3)', background:'linear-gradient(135deg,rgba(239,68,68,.2),rgba(239,68,68,.1))', color:'#ef4444', fontSize:13, fontWeight:700, cursor:resolving?'not-allowed':'pointer', fontFamily:"'Space Grotesk',sans-serif" }}>
                     {resolving===key+'NO' ? 'Resolving…' : '✗ Resolve NO'}
                   </button>
                 </>
