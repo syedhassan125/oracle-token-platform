@@ -23,11 +23,11 @@ const MARKETS = [
   { id: 3, question: "BTC to hit $150k by 2026?", category: "Crypto", yesPercent: 61, volume: "$4.8M", volumeNum: 4800000, ends: "290d", participants: 6234, icon: "btc", gradient: "linear-gradient(135deg,#0a1a1a,#0a2d3d,#1a0a3e)" },
   { id: 4, question: "Will Solana hit $500 in 2026?", category: "Crypto", yesPercent: 68, volume: "$1.2M", volumeNum: 1200000, ends: "220d", participants: 2341, icon: "sol", gradient: "linear-gradient(135deg,#0a1a2e,#1a2d4e,#0a1a3e)" },
   { id: 5, question: "Is NASA going back to the Moon?", category: "Science", yesPercent: 55, volume: "$890K", volumeNum: 890000, ends: "180d", participants: 1892, icon: "planet", gradient: "linear-gradient(135deg,#0a0a2e,#1a1a4e,#0a1a3e)" },
-  { id: 6, question: "Will AI pass the Turing Test?", category: "AI", yesPercent: 71, volume: "$2.1M", volumeNum: 2100000, ends: "75d", participants: 3102, icon: "ai", gradient: "linear-gradient(135deg,#0a1a0a,#1a2d1a,#0a1a2e)" },
-  { id: 7, question: "Will S&P 500 hit 6,500?", category: "Finance", yesPercent: 62, volume: "$1.8M", volumeNum: 1800000, ends: "30d", participants: 2567, icon: "chart", gradient: "linear-gradient(135deg,#1a1a0a,#2d2d0a,#1a0a3e)" },
-  { id: 8, question: "Lakers win NBA Championship?", category: "Sports", yesPercent: 34, volume: "$980K", volumeNum: 980000, ends: "120d", participants: 1654, icon: "sports", gradient: "linear-gradient(135deg,#1a0a0a,#3d1a0a,#1a0a3e)" },
-  { id: 9, question: "Fed cuts rates 3+ times?", category: "Finance", yesPercent: 61, volume: "$2.3M", volumeNum: 2300000, ends: "300d", participants: 2103, icon: "finance", gradient: "linear-gradient(135deg,#0a1a1a,#0a2d2d,#0a1a3e)" },
-  { id: 10, question: "Apple releases AR glasses?", category: "AI", yesPercent: 83, volume: "$1.6M", volumeNum: 1600000, ends: "400d", participants: 3210, icon: "ar", gradient: "linear-gradient(135deg,#1a1a1a,#2d2d2d,#1a1a3e)" },
+  { id: 6,  question: "Will Ethereum hit $10k in 2026?",      category: "Crypto",  yesPercent: 58, volume: "$0", volumeNum: 0, ends: "365d", participants: 0, icon: "eth",    gradient: "linear-gradient(135deg,#0a1a0a,#1a2d1a,#0a1a2e)" },
+  { id: 7,  question: "Will Solana flip Ethereum by TVL?",    category: "Crypto",  yesPercent: 42, volume: "$0", volumeNum: 0, ends: "365d", participants: 0, icon: "sol",    gradient: "linear-gradient(135deg,#1a1a0a,#2d2d0a,#1a0a3e)" },
+  { id: 8,  question: "Will AI replace 10% of jobs by 2027?", category: "AI",      yesPercent: 65, volume: "$0", volumeNum: 0, ends: "365d", participants: 0, icon: "ai",     gradient: "linear-gradient(135deg,#1a0a0a,#3d1a0a,#1a0a3e)" },
+  { id: 9,  question: "Will gold hit $3500 in 2026?",         category: "Finance", yesPercent: 55, volume: "$0", volumeNum: 0, ends: "365d", participants: 0, icon: "finance", gradient: "linear-gradient(135deg,#0a1a1a,#0a2d2d,#0a1a3e)" },
+  { id: 10, question: "Will SpaceX land on Mars by 2030?",    category: "Science", yesPercent: 48, volume: "$0", volumeNum: 0, ends: "365d", participants: 0, icon: "planet",  gradient: "linear-gradient(135deg,#1a1a1a,#2d2d2d,#1a1a3e)" },
   { id: 11, question: "Dogecoin reaches $1?", category: "Crypto", yesPercent: 19, volume: "$650K", volumeNum: 650000, ends: "365d", participants: 987, icon: "doge", gradient: "linear-gradient(135deg,#1a1a0a,#2d2d1a,#1a1a0a)" },
   { id: 12, question: "Republicans win Senate?", category: "Politics", yesPercent: 58, volume: "$4.1M", volumeNum: 4100000, ends: "245d", participants: 6789, icon: "vote", gradient: "linear-gradient(135deg,#1a0a1a,#2d1a2d,#0a0a2e)" },
 ];
@@ -53,6 +53,11 @@ const MARKET_ADDRESSES: Record<string, string> = {
   '3': '3YpbeWS4cRgSJacfu9GunkY1MFB7TjTaZp8FbGyU13hT',
   '4': 'BZe7kfxUPYsf4QGt36Z7G9ivanfv7aeXdRyNaWZimY82',
   '5': '6j44qDgHMgyzyMAF2sWSC5DtJNtM3TUiQh7MphXLzsv7',
+  '6': 'HHB7hUByh8YxJhH8DcqS5uSjHAZEgJfRqVu6YMeVtfyE',
+  '7': '4jWSPtJDXBMiciGyCF6REqiYQBxNQXRrL1knfdKY18mP',
+  '8': 'FD3ohDx6FBMz2b4PecAGWwJVNjk9RBtosCp9Gu75s4mm',
+  '9': 'ByfnE38LZar9cM3GNAXuqhPdWjY8VqhAMZtToLKgNUA6',
+  '10': '13V9xuSRiG1U9j3sEdUmxz9P9vYE6MukYGcXkMyeTyNE',
 };
 
 const ACTIVITY_FEED = [
@@ -349,31 +354,71 @@ const BetModal: FC<{ market: any; onClose: () => void }> = ({ market, onClose })
 
   const handleBet = async () => {
     if (!publicKey) { setErr('Connect your wallet first.'); setStatus('error'); return; }
-    if (!amount||parseFloat(amount)<=0) { setErr('Enter a valid amount.'); setStatus('error'); return; }
+    if (!amount || parseFloat(amount) <= 0) { setErr('Enter a valid amount.'); setStatus('error'); return; }
+    const marketAddr = MARKET_ADDRESSES[String(market.id)];
+    if (!marketAddr) { setErr('This market is not yet deployed on-chain.'); setStatus('error'); return; }
     setStatus('loading'); setErr('');
     try {
-      const { PublicKey: PK, Transaction, SystemProgram } = await import('@solana/web3.js');
-      const { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } = await import('@solana/spl-token');
-      const idl = (await import('./src/oracle_token_idl.json')).default;
-      const { Program, AnchorProvider, BN } = anchor;
-      const MARKET_PDA = new PK('CuvChQETTNKYcnDNJwTQccQkQwJpuK8tqv3KWfwB7Jd2');
-      const provider = new AnchorProvider(connection, { publicKey, signTransaction:async(tx:any)=>tx, signAllTransactions:async(txs:any)=>txs } as any, { commitment:'confirmed' });
-      const program = new Program(idl as any, provider);
-      const [predPDA] = PK.findProgramAddressSync([Buffer.from('prediction'),publicKey.toBuffer(),MARKET_PDA.toBuffer()],PROGRAM_ID);
-      const [userProfile] = PK.findProgramAddressSync([Buffer.from('profile'),publicKey.toBuffer()],PROGRAM_ID);
-      const userTA = await getAssociatedTokenAddress(ORACLE_TOKEN_MINT,publicKey);
-      const vault = await getAssociatedTokenAddress(ORACLE_TOKEN_MINT,MARKET_PDA,true);
+      const { PublicKey: PK, Transaction, TransactionInstruction, SystemProgram } = await import('@solana/web3.js');
+      const { getAssociatedTokenAddress, TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction, ASSOCIATED_TOKEN_PROGRAM_ID } = await import('@solana/spl-token');
+
+      const MARKET_PDA  = new PK(marketAddr);
+      const [predPDA]   = PK.findProgramAddressSync([Buffer.from('prediction'), publicKey.toBuffer(), MARKET_PDA.toBuffer()], PROGRAM_ID);
+      const [userProfile] = PK.findProgramAddressSync([Buffer.from('profile'), publicKey.toBuffer()], PROGRAM_ID);
+      const userTA = await getAssociatedTokenAddress(ORACLE_TOKEN_MINT, publicKey);
+      const vault  = await getAssociatedTokenAddress(ORACLE_TOKEN_MINT, MARKET_PDA, true);
+
       const tx = new Transaction();
+
+      // Create user profile if it doesn't exist yet
       if (!await connection.getAccountInfo(userProfile)) {
-        tx.add(await (program.methods as any).createUserProfile().accounts({ userProfile, user:publicKey, systemProgram:SystemProgram.programId }).instruction());
+        tx.add(new TransactionInstruction({
+          programId: PROGRAM_ID,
+          keys: [
+            { pubkey: userProfile,             isSigner: false, isWritable: true },
+            { pubkey: publicKey,               isSigner: true,  isWritable: true },
+            { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+          ],
+          data: Buffer.from([9, 214, 142, 184, 153, 65, 50, 174]),
+        }));
       }
-      tx.add(await (program.methods as any).makePrediction(side==='yes'?0:1, new BN(Math.floor(parseFloat(amount)))).accounts({ prediction:predPDA, market:MARKET_PDA, userProfile, user:publicKey, userTokenAccount:userTA, marketVault:vault, tokenProgram:TOKEN_PROGRAM_ID, systemProgram:SystemProgram.programId }).instruction());
-      const { blockhash } = await connection.getLatestBlockhash();
-      tx.recentBlockhash=blockhash; tx.feePayer=publicKey;
-      const sig = await sendTransaction(tx,connection);
-      await connection.confirmTransaction(sig,'confirmed');
+
+      // Create market vault ATA if it doesn't exist yet
+      if (!await connection.getAccountInfo(vault)) {
+        tx.add(createAssociatedTokenAccountInstruction(publicKey, vault, MARKET_PDA, ORACLE_TOKEN_MINT, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID));
+      }
+
+      // makePrediction — discriminator + option_index (u8) + amount (u64 LE)
+      const disc   = Buffer.from([206, 137, 238, 92, 59, 16, 13, 227]);
+      const optBuf = Buffer.alloc(1); optBuf.writeUInt8(side === 'yes' ? 0 : 1, 0);
+      const amtBuf = Buffer.alloc(8); amtBuf.writeBigUInt64LE(BigInt(Math.floor(parseFloat(amount))), 0);
+      tx.add(new TransactionInstruction({
+        programId: PROGRAM_ID,
+        keys: [
+          { pubkey: predPDA,                  isSigner: false, isWritable: true },
+          { pubkey: MARKET_PDA,               isSigner: false, isWritable: true },
+          { pubkey: userProfile,              isSigner: false, isWritable: true },
+          { pubkey: publicKey,                isSigner: true,  isWritable: true },
+          { pubkey: userTA,                   isSigner: false, isWritable: true },
+          { pubkey: vault,                    isSigner: false, isWritable: true },
+          { pubkey: TOKEN_PROGRAM_ID,         isSigner: false, isWritable: false },
+          { pubkey: SystemProgram.programId,  isSigner: false, isWritable: false },
+        ],
+        data: Buffer.concat([disc, optBuf, amtBuf]),
+      }));
+
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+      tx.recentBlockhash = blockhash;
+      tx.feePayer = publicKey;
+
+      const sig = await sendTransaction(tx, connection);
+      await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
       setTxSig(sig); setStatus('success');
-    } catch(e:any) { setErr(e?.message||'Transaction failed.'); setStatus('error'); }
+    } catch (e: any) {
+      const msg = e?.logs?.join?.('\n') || e?.message || 'Transaction failed.';
+      setErr(msg.includes('already in use') ? 'You already have a prediction on this market.' : msg.includes('insufficient') ? 'Insufficient OCT balance.' : e?.message || 'Transaction failed.');
+      setStatus('error');
+    }
   };
 
   return (
