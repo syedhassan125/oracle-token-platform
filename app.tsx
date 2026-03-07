@@ -373,21 +373,27 @@ const BetModal: FC<{ market: any; onClose: () => void }> = ({ market, onClose })
         tx.add(createAssociatedTokenAccountInstruction(publicKey, vault, MARKET_PDA, ORACLE_TOKEN_MINT, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID));
       }
       tx.add(await (program.methods as any).makePrediction(side==='yes'?0:1, new BN(Math.floor(parseFloat(amount)))).accounts({ prediction:predPDA, market:MARKET_PDA, userProfile, user:publicKey, userTokenAccount:userTA, marketVault:vault, tokenProgram:TOKEN_PROGRAM_ID, systemProgram:SystemProgram.programId }).instruction());
-      const { blockhash } = await connection.getLatestBlockhash();
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
       tx.recentBlockhash=blockhash; tx.feePayer=publicKey;
-      const sig = await sendTransaction(tx,connection);
-      await connection.confirmTransaction(sig,'confirmed');
-      setTxSig(sig); setStatus('success');
-    } catch(e:any) {
-      const logs = (e?.logs as string[]|undefined)?.join('\n');
-      const msg = logs
-        ? (logs.includes('insufficient funds') ? 'Insufficient OCT token balance. Get tokens from the Admin → Faucet.'
-          : logs.includes('already in use') ? 'You already have a prediction on this market.'
+
+      // Simulate first to get real error logs
+      const sim = await connection.simulateTransaction(tx, { sigVerify: false });
+      if (sim.value.err) {
+        const logs = sim.value.logs?.join('\n') || '';
+        const msg = logs.includes('already in use') ? 'You already have a prediction on this market.'
+          : logs.includes('insufficient funds') || logs.includes('0x1') ? 'Insufficient OCT balance.'
           : logs.includes('MarketNotActive') ? 'Market is not active.'
           : logs.includes('MarketExpired') ? 'Market has expired.'
-          : e?.message || 'Transaction failed.')
-        : e?.message || 'Transaction failed.';
-      setErr(msg);
+          : logs.includes('InvalidOption') ? 'Invalid option selected.'
+          : logs || JSON.stringify(sim.value.err);
+        setErr(msg); setStatus('error'); return;
+      }
+
+      const sig = await sendTransaction(tx, connection);
+      await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
+      setTxSig(sig); setStatus('success');
+    } catch(e:any) {
+      setErr(e?.message || 'Transaction failed.');
       setStatus('error');
     }
   };
