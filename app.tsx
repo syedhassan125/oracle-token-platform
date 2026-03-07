@@ -836,35 +836,120 @@ const LeaderboardPage: FC<{ octBalance: number }> = ({ octBalance }) => {
 };
 
 // ─── Claim Rewards Tab ────────────────────────────────────────────────────────
-const MOCK_CLAIMABLE = [
-  { id: 1, market: 'Will Ethereum ETF be approved?', marketId: '1', side: 'Yes', amount: 400, potential: 720, resolvedOutcome: 'Yes', won: true },
-  { id: 2, market: 'BTC to hit $150k by 2026?', marketId: '3', side: 'Yes', amount: 750, potential: 1200, resolvedOutcome: 'No', won: false },
-];
+// ── On-chain prediction type ──────────────────────────────────────────────────
+type OnChainPred = {
+  key: string;
+  marketId: string;
+  marketTitle: string;
+  optionIndex: number;
+  amount: number;
+  claimed: boolean;
+  predPDAStr: string;
+  marketResolved: boolean;
+  correctOptionIndex: number | null;
+  won: boolean | null;
+};
+
+function parsePrediction(data: Uint8Array): { optionIndex: number; amount: number; claimed: boolean } | null {
+  try {
+    // 8 discriminator + 32 user + 32 market = offset 72
+    const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+    const optionIndex = view.getUint8(72);
+    const amountLo = view.getUint32(73, true);
+    const amountHi = view.getUint32(77, true);
+    const amount = amountHi * 0x100000000 + amountLo;
+    const claimed = view.getUint8(89) !== 0;
+    return { optionIndex, amount, claimed };
+  } catch { return null; }
+}
+
+function parseMarketResolution(data: Uint8Array): { resolved: boolean; correctOptionIndex: number | null } {
+  try {
+    const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+    const dec = new TextDecoder();
+    let o = 8; // skip discriminator
+    o += 8;  // market_id u64
+    o += 32; // creator pubkey
+    // title String (u32 len + bytes)
+    const titleLen = view.getUint32(o, true); o += 4 + titleLen;
+    // description String
+    const descLen = view.getUint32(o, true); o += 4 + descLen;
+    o += 1; // category enum u8
+    // options Vec<String>
+    const numOpts = view.getUint32(o, true); o += 4;
+    for (let i = 0; i < numOpts; i++) { const l = view.getUint32(o, true); o += 4 + l; }
+    // option_votes Vec<u64>
+    const numVotes = view.getUint32(o, true); o += 4 + numVotes * 8;
+    o += 8; // resolution_timestamp i64
+    const status = view.getUint8(o); o += 1; // 2 = Resolved
+    o += 8; // total_volume u64
+    // correct_option_index Option<u8>
+    const hasCorrect = view.getUint8(o); o += 1;
+    const correctOptionIndex = hasCorrect ? view.getUint8(o) : null;
+    return { resolved: status === 2, correctOptionIndex };
+  } catch { return { resolved: false, correctOptionIndex: null }; }
+}
 
 const ClaimRewardsTab: FC = () => {
   const { publicKey, sendTransaction } = useWallet();
   const { connection } = useConnection();
-  const [claimStatus, setClaimStatus] = useState<Record<number, 'idle'|'loading'|'claimed'|'error'>>({});
-  const [claimTx, setClaimTx] = useState<Record<number, string>>({});
+  const [preds, setPreds] = useState<OnChainPred[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [claimStatus, setClaimStatus] = useState<Record<string, 'idle'|'loading'|'claimed'|'error'>>({});
+  const [claimTx, setClaimTx] = useState<Record<string, string>>({});
 
-  const handleClaim = async (pred: typeof MOCK_CLAIMABLE[0]) => {
+  useEffect(() => {
+    if (!publicKey) { setPreds([]); return; }
+    setLoading(true);
+    (async () => {
+      try {
+        const { PublicKey } = await import('@solana/web3.js');
+        const marketIds = Object.keys(MARKET_ADDRESSES);
+        const entries = marketIds.map(id => {
+          const mPDA = new PublicKey(MARKET_ADDRESSES[id]);
+          const [predPDA] = PublicKey.findProgramAddressSync(
+            [Buffer.from('prediction'), publicKey.toBuffer(), mPDA.toBuffer()],
+            PROGRAM_ID
+          );
+          return { id, mPDA, predPDA };
+        });
+        const predInfos = await connection.getMultipleAccountsInfo(entries.map(e => e.predPDA));
+        const found = entries.map((e, i) => ({ ...e, predInfo: predInfos[i] })).filter(e => e.predInfo !== null);
+        if (found.length === 0) { setPreds([]); setLoading(false); return; }
+        const marketInfos = await connection.getMultipleAccountsInfo(found.map(e => e.mPDA));
+        const result: OnChainPred[] = [];
+        for (let i = 0; i < found.length; i++) {
+          const { id, predPDA, predInfo, mPDA } = found[i];
+          const pred = parsePrediction(predInfo!.data as Uint8Array);
+          if (!pred) continue;
+          const ms = marketInfos[i] ? parseMarketResolution(marketInfos[i]!.data as Uint8Array) : { resolved: false, correctOptionIndex: null };
+          const marketTitle = MARKETS.find(m => m.id.toString() === id)?.question || `Market ${id}`;
+          const won = ms.resolved && ms.correctOptionIndex !== null ? pred.optionIndex === ms.correctOptionIndex : null;
+          result.push({ key: id, marketId: id, marketTitle, optionIndex: pred.optionIndex, amount: pred.amount, claimed: pred.claimed, predPDAStr: predPDA.toBase58(), marketResolved: ms.resolved, correctOptionIndex: ms.correctOptionIndex, won });
+        }
+        setPreds(result);
+      } catch (e) { console.error(e); }
+      finally { setLoading(false); }
+    })();
+  }, [publicKey, connection]);
+
+  const handleClaim = async (pred: OnChainPred) => {
     if (!publicKey) return;
-    setClaimStatus(s => ({ ...s, [pred.id]: 'loading' }));
+    setClaimStatus(s => ({ ...s, [pred.key]: 'loading' }));
     try {
       const { PublicKey, Transaction, TransactionInstruction } = await import('@solana/web3.js');
       const { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } = await import('@solana/spl-token');
       const marketPDA = new PublicKey(MARKET_ADDRESSES[pred.marketId]);
-      const [predictionPDA] = PublicKey.findProgramAddressSync([Buffer.from('prediction'), publicKey.toBuffer(), marketPDA.toBuffer()], PROGRAM_ID);
+      const predPDA = new PublicKey(pred.predPDAStr);
       const [userProfilePDA] = PublicKey.findProgramAddressSync([Buffer.from('profile'), publicKey.toBuffer()], PROGRAM_ID);
       const [platformStatePDA] = PublicKey.findProgramAddressSync([Buffer.from('platform')], PROGRAM_ID);
       const userTokenAccount = await getAssociatedTokenAddress(ORACLE_TOKEN_MINT, publicKey);
       const marketVault = await getAssociatedTokenAddress(ORACLE_TOKEN_MINT, marketPDA, true);
-      // claim_reward discriminator from IDL: [149,95,181,242,94,90,158,162]
       const ix = new TransactionInstruction({
         programId: PROGRAM_ID,
         keys: [
           { pubkey: marketPDA,        isSigner: false, isWritable: true },
-          { pubkey: predictionPDA,    isSigner: false, isWritable: true },
+          { pubkey: predPDA,          isSigner: false, isWritable: true },
           { pubkey: userProfilePDA,   isSigner: false, isWritable: true },
           { pubkey: platformStatePDA, isSigner: false, isWritable: false },
           { pubkey: publicKey,        isSigner: true,  isWritable: true },
@@ -879,51 +964,57 @@ const ClaimRewardsTab: FC = () => {
       tx.recentBlockhash = blockhash; tx.feePayer = publicKey;
       const sig = await sendTransaction(tx, connection);
       await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
-      setClaimTx(t => ({ ...t, [pred.id]: sig }));
-      setClaimStatus(s => ({ ...s, [pred.id]: 'claimed' }));
+      setClaimTx(t => ({ ...t, [pred.key]: sig }));
+      setClaimStatus(s => ({ ...s, [pred.key]: 'claimed' }));
+      setPreds(ps => ps.map(p => p.key === pred.key ? { ...p, claimed: true } : p));
     } catch (err: any) {
       console.error(err);
-      setClaimStatus(s => ({ ...s, [pred.id]: 'error' }));
+      setClaimStatus(s => ({ ...s, [pred.key]: 'error' }));
     }
   };
 
-  const winners = MOCK_CLAIMABLE.filter(p => p.won);
-  const losers = MOCK_CLAIMABLE.filter(p => !p.won);
+  const winners = preds.filter(p => p.won === true && !p.claimed);
+  const alreadyClaimed = preds.filter(p => p.claimed);
+  const losers = preds.filter(p => p.won === false);
+  const pending = preds.filter(p => p.won === null);
+
+  if (!publicKey) return (
+    <div style={{ padding: 48, textAlign: 'center', color: 'rgba(255,255,255,.25)', fontSize: 13, background: 'rgba(13,13,43,.6)', border: '1px solid rgba(139,92,246,.15)', borderRadius: 14 }}>Connect your wallet to see your predictions.</div>
+  );
+  if (loading) return (
+    <div style={{ padding: 48, textAlign: 'center', color: 'rgba(255,255,255,.25)', fontSize: 13, background: 'rgba(13,13,43,.6)', border: '1px solid rgba(139,92,246,.15)', borderRadius: 14 }}>Loading your predictions…</div>
+  );
+  if (preds.length === 0) return (
+    <div style={{ padding: 48, textAlign: 'center', color: 'rgba(255,255,255,.25)', fontSize: 13, background: 'rgba(13,13,43,.6)', border: '1px solid rgba(139,92,246,.15)', borderRadius: 14 }}>No predictions found for this wallet.</div>
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {winners.length === 0 && (
-        <div style={{ padding: 48, textAlign: 'center', color: 'rgba(255,255,255,.25)', fontSize: 13, background: 'rgba(13,13,43,.6)', border: '1px solid rgba(139,92,246,.15)', borderRadius: 14 }}>No claimable rewards right now.</div>
-      )}
       {winners.length > 0 && (
         <div style={{ background: 'rgba(13,13,43,.6)', border: '1px solid rgba(16,185,129,.2)', borderRadius: 14, overflow: 'hidden' }}>
           <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,.06)', background: 'rgba(16,185,129,.05)', fontSize: 11, color: 'rgba(16,185,129,.7)', letterSpacing: 2, textTransform: 'uppercase' as const }}>Winning predictions — {winners.length} claimable</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 120px 140px', gap: 16, padding: '10px 20px', borderBottom: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)' }}>
-            {['Market', 'Your Side', 'Staked', 'Payout', ''].map((h, i) => (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 120px 140px', gap: 16, padding: '10px 20px', borderBottom: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)' }}>
+            {['Market', 'Your Side', 'Staked', ''].map((h, i) => (
               <div key={i} style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', letterSpacing: 2, textTransform: 'uppercase' as const }}>{h}</div>
             ))}
           </div>
           {winners.map((pred, idx) => {
-            const status = claimStatus[pred.id] || 'idle';
+            const status = claimStatus[pred.key] || 'idle';
             return (
-              <div key={pred.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 120px 140px', gap: 16, padding: '14px 20px', borderBottom: idx < winners.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none', alignItems: 'center' }}>
+              <div key={pred.key} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 120px 140px', gap: 16, padding: '14px 20px', borderBottom: idx < winners.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,.85)', marginBottom: 3 }}>{pred.market}</div>
-                  <div style={{ fontSize: 10, color: 'rgba(16,185,129,.5)', letterSpacing: .5 }}>Resolved: {pred.resolvedOutcome} ✓</div>
+                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,.85)', marginBottom: 3 }}>{pred.marketTitle}</div>
+                  <div style={{ fontSize: 10, color: 'rgba(16,185,129,.5)', letterSpacing: .5 }}>Resolved: {pred.correctOptionIndex === 0 ? 'YES' : 'NO'} ✓</div>
                 </div>
-                <div style={{ fontSize: 11, padding: '3px 9px', borderRadius: 5, background: pred.side === 'Yes' ? 'rgba(16,185,129,.12)' : 'rgba(239,68,68,.12)', color: pred.side === 'Yes' ? '#10b981' : '#ef4444', fontWeight: 600, display: 'inline-block', textTransform: 'uppercase' as const }}>{pred.side}</div>
+                <div style={{ fontSize: 11, padding: '3px 9px', borderRadius: 5, background: pred.optionIndex === 0 ? 'rgba(16,185,129,.12)' : 'rgba(239,68,68,.12)', color: pred.optionIndex === 0 ? '#10b981' : '#ef4444', fontWeight: 600, display: 'inline-block' }}>{pred.optionIndex === 0 ? 'YES' : 'NO'}</div>
                 <div style={{ fontSize: 13, color: 'rgba(255,255,255,.5)', fontWeight: 500 }}>{pred.amount} OCT</div>
-                <div style={{ fontSize: 13, color: '#10b981', fontWeight: 600 }}>+{pred.potential} OCT</div>
                 <div>
                   {status === 'claimed' ? (
-                    <div style={{ fontSize: 11, color: 'rgba(16,185,129,.7)' }}>
-                      ✓ Claimed
-                      {claimTx[pred.id] && <a href={`https://explorer.solana.com/tx/${claimTx[pred.id]}?cluster=devnet`} target="_blank" rel="noreferrer" style={{ marginLeft: 6, color: 'rgba(139,92,246,.6)', fontSize: 10 }}>tx ↗</a>}
-                    </div>
+                    <div style={{ fontSize: 11, color: 'rgba(16,185,129,.7)' }}>✓ Claimed {claimTx[pred.key] && <a href={`https://explorer.solana.com/tx/${claimTx[pred.key]}?cluster=devnet`} target="_blank" rel="noreferrer" style={{ marginLeft: 6, color: 'rgba(139,92,246,.6)', fontSize: 10 }}>tx ↗</a>}</div>
                   ) : status === 'error' ? (
-                    <div style={{ fontSize: 11, color: '#ef4444' }}>Failed</div>
+                    <div style={{ fontSize: 11, color: '#ef4444' }}>Failed — retry</div>
                   ) : (
-                    <button onClick={() => handleClaim(pred)} disabled={status === 'loading' || !publicKey} style={{ padding: '7px 16px', background: 'rgba(16,185,129,.12)', border: '1px solid rgba(16,185,129,.3)', borderRadius: 8, color: '#10b981', fontSize: 12, fontWeight: 600, cursor: status === 'loading' ? 'default' : 'pointer', fontFamily: "'Space Grotesk',sans-serif", opacity: status === 'loading' ? .6 : 1, transition: 'all .2s' }}>
+                    <button onClick={() => handleClaim(pred)} disabled={status === 'loading'} style={{ padding: '7px 16px', background: 'rgba(16,185,129,.12)', border: '1px solid rgba(16,185,129,.3)', borderRadius: 8, color: '#10b981', fontSize: 12, fontWeight: 600, cursor: status === 'loading' ? 'default' : 'pointer', fontFamily: "'Space Grotesk',sans-serif", opacity: status === 'loading' ? .6 : 1, transition: 'all .2s' }}>
                       {status === 'loading' ? 'Claiming…' : 'Claim Reward'}
                     </button>
                   )}
@@ -933,18 +1024,46 @@ const ClaimRewardsTab: FC = () => {
           })}
         </div>
       )}
+      {winners.length === 0 && losers.length === 0 && pending.length === 0 && alreadyClaimed.length === 0 && (
+        <div style={{ padding: 48, textAlign: 'center', color: 'rgba(255,255,255,.25)', fontSize: 13, background: 'rgba(13,13,43,.6)', border: '1px solid rgba(139,92,246,.15)', borderRadius: 14 }}>No claimable rewards right now.</div>
+      )}
+      {pending.length > 0 && (
+        <div style={{ background: 'rgba(13,13,43,.6)', border: '1px solid rgba(245,158,11,.12)', borderRadius: 14, overflow: 'hidden' }}>
+          <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,.06)', fontSize: 11, color: 'rgba(245,158,11,.5)', letterSpacing: 2, textTransform: 'uppercase' as const }}>Awaiting resolution — {pending.length}</div>
+          {pending.map((pred, idx) => (
+            <div key={pred.key} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 120px', gap: 16, padding: '12px 20px', borderBottom: idx < pending.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none', alignItems: 'center' }}>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,.5)' }}>{pred.marketTitle}</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', textTransform: 'uppercase' as const }}>{pred.optionIndex === 0 ? 'YES' : 'NO'}</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.3)' }}>{pred.amount} OCT</div>
+            </div>
+          ))}
+        </div>
+      )}
       {losers.length > 0 && (
         <div style={{ background: 'rgba(13,13,43,.6)', border: '1px solid rgba(239,68,68,.12)', borderRadius: 14, overflow: 'hidden' }}>
-          <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,.06)', fontSize: 11, color: 'rgba(239,68,68,.4)', letterSpacing: 2, textTransform: 'uppercase' as const }}>Lost predictions</div>
+          <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,.06)', fontSize: 11, color: 'rgba(239,68,68,.4)', letterSpacing: 2, textTransform: 'uppercase' as const }}>Lost predictions — {losers.length}</div>
           {losers.map((pred, idx) => (
-            <div key={pred.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 120px', gap: 16, padding: '12px 20px', borderBottom: idx < losers.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none', alignItems: 'center' }}>
+            <div key={pred.key} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 120px 80px', gap: 16, padding: '12px 20px', borderBottom: idx < losers.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none', alignItems: 'center' }}>
               <div>
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,.35)' }}>{pred.market}</div>
-                <div style={{ fontSize: 10, color: 'rgba(239,68,68,.35)', marginTop: 2 }}>Resolved: {pred.resolvedOutcome}</div>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,.35)' }}>{pred.marketTitle}</div>
+                <div style={{ fontSize: 10, color: 'rgba(239,68,68,.35)', marginTop: 2 }}>Resolved: {pred.correctOptionIndex === 0 ? 'YES' : 'NO'}</div>
               </div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', textTransform: 'uppercase' as const }}>{pred.side}</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', textTransform: 'uppercase' as const }}>{pred.optionIndex === 0 ? 'YES' : 'NO'}</div>
               <div style={{ fontSize: 12, color: 'rgba(255,255,255,.2)' }}>{pred.amount} OCT</div>
               <div style={{ fontSize: 11, color: 'rgba(239,68,68,.4)' }}>— no payout</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {alreadyClaimed.length > 0 && (
+        <div style={{ background: 'rgba(13,13,43,.6)', border: '1px solid rgba(255,255,255,.06)', borderRadius: 14, overflow: 'hidden' }}>
+          <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,.06)', fontSize: 11, color: 'rgba(255,255,255,.2)', letterSpacing: 2, textTransform: 'uppercase' as const }}>Already claimed — {alreadyClaimed.length}</div>
+          {alreadyClaimed.map((pred, idx) => (
+            <div key={pred.key} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 120px 80px', gap: 16, padding: '12px 20px', borderBottom: idx < alreadyClaimed.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none', alignItems: 'center' }}>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,.3)' }}>{pred.marketTitle}</div>
+              <div style={{ fontSize: 11, color: pred.optionIndex === 0 ? 'rgba(16,185,129,.4)' : 'rgba(239,68,68,.4)', textTransform: 'uppercase' as const }}>{pred.optionIndex === 0 ? 'YES' : 'NO'}</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.2)' }}>{pred.amount} OCT</div>
+              <div style={{ fontSize: 11, color: 'rgba(16,185,129,.4)' }}>✓ Claimed</div>
             </div>
           ))}
         </div>
