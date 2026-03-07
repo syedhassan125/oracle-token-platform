@@ -350,85 +350,30 @@ const BetModal: FC<{ market: any; onClose: () => void }> = ({ market, onClose })
   const handleBet = async () => {
     if (!publicKey) { setErr('Connect your wallet first.'); setStatus('error'); return; }
     if (!amount||parseFloat(amount)<=0) { setErr('Enter a valid amount.'); setStatus('error'); return; }
-    const marketAddr = MARKET_ADDRESSES[String(market.id)];
-    if (!marketAddr) { setErr('This market is not yet deployed on-chain.'); setStatus('error'); return; }
     setStatus('loading'); setErr('');
     try {
-      const { PublicKey: PK, Transaction, TransactionInstruction, SystemProgram, AccountMeta } = await import('@solana/web3.js');
-      const { getAssociatedTokenAddress, TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction, ASSOCIATED_TOKEN_PROGRAM_ID } = await import('@solana/spl-token');
-      const MARKET_PDA = new PK(marketAddr);
+      const { PublicKey: PK, Transaction, SystemProgram } = await import('@solana/web3.js');
+      const { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } = await import('@solana/spl-token');
+      const idl = (await import('./target/idl/oracle_token.json')).default;
+      const { Program, AnchorProvider, BN } = anchor;
+      const MARKET_PDA = new PK('CuvChQETTNKYcnDNJwTQccQkQwJpuK8tqv3KWfwB7Jd2');
+      const provider = new AnchorProvider(connection, { publicKey, signTransaction:async(tx:any)=>tx, signAllTransactions:async(txs:any)=>txs } as any, { commitment:'confirmed' });
+      const program = new Program(idl as any, provider);
       const [predPDA] = PK.findProgramAddressSync([Buffer.from('prediction'),publicKey.toBuffer(),MARKET_PDA.toBuffer()],PROGRAM_ID);
       const [userProfile] = PK.findProgramAddressSync([Buffer.from('profile'),publicKey.toBuffer()],PROGRAM_ID);
       const userTA = await getAssociatedTokenAddress(ORACLE_TOKEN_MINT,publicKey);
       const vault = await getAssociatedTokenAddress(ORACLE_TOKEN_MINT,MARKET_PDA,true);
-
       const tx = new Transaction();
-
-      // createUserProfile if needed — discriminator: [9,214,142,184,153,65,50,174]
       if (!await connection.getAccountInfo(userProfile)) {
-        const disc = Buffer.from([9,214,142,184,153,65,50,174]);
-        tx.add(new TransactionInstruction({
-          programId: PROGRAM_ID,
-          keys: [
-            { pubkey: userProfile, isSigner: false, isWritable: true },
-            { pubkey: publicKey,   isSigner: true,  isWritable: true },
-            { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-          ],
-          data: disc,
-        }));
+        tx.add(await (program.methods as any).createUserProfile().accounts({ userProfile, user:publicKey, systemProgram:SystemProgram.programId }).instruction());
       }
-
-      // createAssociatedTokenAccount for market vault if needed
-      if (!await connection.getAccountInfo(vault)) {
-        tx.add(createAssociatedTokenAccountInstruction(publicKey, vault, MARKET_PDA, ORACLE_TOKEN_MINT, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID));
-      }
-
-      // makePrediction — discriminator: [206,137,238,92,59,16,13,227]
-      // args: option_index (u8) + amount (u64 LE)
-      const disc = Buffer.from([206,137,238,92,59,16,13,227]);
-      const optBuf = Buffer.alloc(1);
-      optBuf.writeUInt8(side==='yes'?0:1, 0);
-      const amtBuf = Buffer.alloc(8);
-      amtBuf.writeBigUInt64LE(BigInt(Math.floor(parseFloat(amount))), 0);
-      tx.add(new TransactionInstruction({
-        programId: PROGRAM_ID,
-        keys: [
-          { pubkey: predPDA,    isSigner: false, isWritable: true },
-          { pubkey: MARKET_PDA, isSigner: false, isWritable: true },
-          { pubkey: userProfile,isSigner: false, isWritable: true },
-          { pubkey: publicKey,  isSigner: true,  isWritable: true },
-          { pubkey: userTA,     isSigner: false, isWritable: true },
-          { pubkey: vault,      isSigner: false, isWritable: true },
-          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-        ],
-        data: Buffer.concat([disc, optBuf, amtBuf]),
-      }));
-
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+      tx.add(await (program.methods as any).makePrediction(side==='yes'?0:1, new BN(Math.floor(parseFloat(amount)))).accounts({ prediction:predPDA, market:MARKET_PDA, userProfile, user:publicKey, userTokenAccount:userTA, marketVault:vault, tokenProgram:TOKEN_PROGRAM_ID, systemProgram:SystemProgram.programId }).instruction());
+      const { blockhash } = await connection.getLatestBlockhash();
       tx.recentBlockhash=blockhash; tx.feePayer=publicKey;
-
-      // Simulate first to get real error logs
-      const sim = await connection.simulateTransaction(tx, { sigVerify: false } as any);
-      if (sim.value.err) {
-        const logs = (sim.value.logs||[]).join('\n');
-        const msg = logs.includes('already in use') ? 'You already have a prediction on this market.'
-          : logs.includes('insufficient funds')||logs.includes('0x1') ? 'Insufficient OCT balance.'
-          : logs.includes('MarketNotActive') ? 'Market is not active.'
-          : logs.includes('MarketExpired') ? 'Market has expired.'
-          : logs.includes('InvalidOption') ? 'Invalid option selected.'
-          : logs ? logs.split('\n').find((l:string)=>l.includes('Error')||l.includes('error')) || logs.split('\n').slice(-3).join(' | ')
-          : JSON.stringify(sim.value.err);
-        setErr(msg); setStatus('error'); return;
-      }
-
-      const sig = await sendTransaction(tx, connection);
-      await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
+      const sig = await sendTransaction(tx,connection);
+      await connection.confirmTransaction(sig,'confirmed');
       setTxSig(sig); setStatus('success');
-    } catch(e:any) {
-      setErr(e?.message || 'Transaction failed.');
-      setStatus('error');
-    }
+    } catch(e:any) { setErr(e?.message||'Transaction failed.'); setStatus('error'); }
   };
 
   return (
@@ -846,192 +791,109 @@ const LeaderboardPage: FC<{ octBalance: number }> = ({ octBalance }) => {
 };
 
 // ─── Claim Rewards Tab ────────────────────────────────────────────────────────
-const CLAIMABLE_PREDICTIONS = [
-  { id: 1, market: "Bitcoin ETF approved?", category: "Crypto", side: "Yes", amount: 1500, reward: 2250, marketAddr: MARKET_ADDRESSES['1'] },
-  { id: 2, market: "Fed rate cut Sept 2024?", category: "Finance", side: "Yes", amount: 800, reward: 1440, marketAddr: MARKET_ADDRESSES['3'] },
+const MOCK_CLAIMABLE = [
+  { id: 1, market: 'Will Ethereum ETF be approved?', marketId: '1', side: 'Yes', amount: 400, potential: 720, resolvedOutcome: 'Yes', won: true },
+  { id: 2, market: 'BTC to hit $150k by 2026?', marketId: '3', side: 'Yes', amount: 750, potential: 1200, resolvedOutcome: 'No', won: false },
 ];
 
 const ClaimRewardsTab: FC = () => {
-  const { publicKey, signTransaction } = useWallet();
+  const { publicKey, sendTransaction } = useWallet();
   const { connection } = useConnection();
-  const [claiming, setClaiming] = useState<number | null>(null);
-  const [claimed, setClaimed] = useState<Set<number>>(new Set());
+  const [claimStatus, setClaimStatus] = useState<Record<number, 'idle'|'loading'|'claimed'|'error'>>({});
+  const [claimTx, setClaimTx] = useState<Record<number, string>>({});
 
-  const handleClaim = async (pred: typeof CLAIMABLE_PREDICTIONS[0]) => {
-    if (!publicKey || !signTransaction) return;
-    setClaiming(pred.id);
+  const handleClaim = async (pred: typeof MOCK_CLAIMABLE[0]) => {
+    if (!publicKey) return;
+    setClaimStatus(s => ({ ...s, [pred.id]: 'loading' }));
     try {
-      const idl = (await import('./src/oracle_token_idl.json')).default;
-      const { Program, AnchorProvider, BN } = anchor;
-      const provider = new AnchorProvider(connection, { publicKey, signTransaction, signAllTransactions: async (txs) => txs } as any, { commitment:'confirmed' });
-      const program = new Program(idl as any, provider);
-      const [platformPda] = PublicKey.findProgramAddressSync([Buffer.from('platform')], PROGRAM_ID);
-      const [profilePda] = PublicKey.findProgramAddressSync([Buffer.from('profile'), publicKey.toBuffer()], PROGRAM_ID);
-      const marketPk = new PublicKey(pred.marketAddr);
-      const [predPda] = PublicKey.findProgramAddressSync([Buffer.from('prediction'), publicKey.toBuffer(), marketPk.toBuffer()], PROGRAM_ID);
+      const { PublicKey, Transaction } = await import('@solana/web3.js');
       const { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } = await import('@solana/spl-token');
-      const { ASSOCIATED_TOKEN_PROGRAM_ID } = await import('@solana/spl-token');
-      const userTokenAcc = await getAssociatedTokenAddress(ORACLE_TOKEN_MINT, publicKey);
-      const platformTokenAcc = await getAssociatedTokenAddress(ORACLE_TOKEN_MINT, platformPda, true);
-      await (program.methods as any).claimReward().accounts({
-        prediction: predPda, market: marketPk, userProfile: profilePda,
-        platformState: platformPda, user: publicKey,
-        userTokenAccount: userTokenAcc, platformTokenAccount: platformTokenAcc,
-        tokenMint: ORACLE_TOKEN_MINT, tokenProgram: TOKEN_PROGRAM_ID,
-        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      }).rpc();
-      setClaimed(prev => new Set([...prev, pred.id]));
-    } catch (e: any) {
-      alert('Claim failed: ' + (e.message || String(e)));
-    } finally {
-      setClaiming(null);
-    }
-  };
-
-  if (CLAIMABLE_PREDICTIONS.length === 0) {
-    return <div style={{ textAlign:'center', color:'rgba(255,255,255,.3)', padding:'60px 0', fontSize:14 }}>No claimable rewards yet.</div>;
-  }
-
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-      {CLAIMABLE_PREDICTIONS.map(pred => (
-        <div key={pred.id} style={{ display:'grid', gridTemplateColumns:'1fr 80px 100px 120px 140px', gap:16, alignItems:'center', padding:'16px 20px', background:'rgba(13,13,43,.7)', border:'1px solid rgba(16,185,129,.2)', borderRadius:12 }}>
-          <div>
-            <div style={{ fontSize:13, color:'rgba(255,255,255,.85)', marginBottom:3 }}>{pred.market}</div>
-            <div style={{ fontSize:10, color:'rgba(255,255,255,.3)', textTransform:'uppercase', letterSpacing:1 }}>{pred.category} · Resolved</div>
-          </div>
-          <div style={{ fontSize:11, padding:'3px 9px', borderRadius:5, background: pred.side==='Yes'?'rgba(16,185,129,.12)':'rgba(239,68,68,.12)', color: pred.side==='Yes'?'#10b981':'#ef4444', fontWeight:600, textTransform:'uppercase', display:'inline-block' }}>{pred.side}</div>
-          <div style={{ fontSize:13, color:'rgba(255,255,255,.5)', fontWeight:500 }}>{pred.amount} OCT</div>
-          <div style={{ fontSize:14, fontWeight:700, color:'#10b981' }}>+{pred.reward} OCT</div>
-          {claimed.has(pred.id) ? (
-            <div style={{ fontSize:12, color:'#10b981', fontWeight:600, textAlign:'center' }}>✓ Claimed</div>
-          ) : (
-            <button onClick={()=>handleClaim(pred)} disabled={!publicKey || claiming===pred.id} style={{ padding:'8px 18px', borderRadius:8, border:'none', background: publicKey?'linear-gradient(135deg,#10b981,#059669)':'rgba(255,255,255,.08)', color: publicKey?'white':'rgba(255,255,255,.3)', fontSize:12, fontWeight:600, cursor: publicKey?'pointer':'not-allowed', fontFamily:"'Space Grotesk',sans-serif" }}>
-              {claiming===pred.id ? 'Claiming…' : 'Claim Reward'}
-            </button>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-};
-
-// ─── Admin Page ───────────────────────────────────────────────────────────────
-const AdminPage: FC = () => {
-  const { publicKey, signTransaction, sendTransaction } = useWallet();
-  const { connection } = useConnection();
-  const [resolving, setResolving] = useState<string | null>(null);
-  const [resolved, setResolved] = useState<Record<string, 'YES'|'NO'>>({});
-  const [faucetAddr, setFaucetAddr] = useState('');
-  const [faucetAmt, setFaucetAmt] = useState('1000');
-  const [faucetStatus, setFaucetStatus] = useState<'idle'|'loading'|'ok'|'err'>('idle');
-  const [faucetMsg, setFaucetMsg] = useState('');
-
-  const handleFaucet = async () => {
-    if (!publicKey || !faucetAddr) return;
-    setFaucetStatus('loading'); setFaucetMsg('');
-    try {
-      const { PublicKey: PK, Transaction } = await import('@solana/web3.js');
-      const { getAssociatedTokenAddress, TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction, createMintToInstruction, ASSOCIATED_TOKEN_PROGRAM_ID } = await import('@solana/spl-token');
-      const dest = new PK(faucetAddr.trim());
-      const destATA = await getAssociatedTokenAddress(ORACLE_TOKEN_MINT, dest);
-      const tx = new Transaction();
-      if (!await connection.getAccountInfo(destATA)) {
-        tx.add(createAssociatedTokenAccountInstruction(publicKey, destATA, dest, ORACLE_TOKEN_MINT, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID));
-      }
-      const amtRaw = Math.floor(parseFloat(faucetAmt) * 1_000_000); // 6 decimals
-      tx.add(createMintToInstruction(ORACLE_TOKEN_MINT, destATA, publicKey, amtRaw, [], TOKEN_PROGRAM_ID));
+      const { Program, AnchorProvider } = anchor;
+      const marketPDA = new PublicKey(MARKET_ADDRESSES[pred.marketId]);
+      const idl = (await import('./target/idl/oracle_token.json')).default;
+      const provider = new AnchorProvider(connection, { publicKey, signTransaction: async (tx: any) => tx, signAllTransactions: async (txs: any) => txs } as any, { commitment: 'confirmed' });
+      const program = new Program(idl as any, provider);
+      const [predictionPDA] = PublicKey.findProgramAddressSync([Buffer.from('prediction'), publicKey.toBuffer(), marketPDA.toBuffer()], PROGRAM_ID);
+      const [userProfilePDA] = PublicKey.findProgramAddressSync([Buffer.from('profile'), publicKey.toBuffer()], PROGRAM_ID);
+      const [platformStatePDA] = PublicKey.findProgramAddressSync([Buffer.from('platform')], PROGRAM_ID);
+      const userTokenAccount = await getAssociatedTokenAddress(ORACLE_TOKEN_MINT, publicKey);
+      const marketVault = await getAssociatedTokenAddress(ORACLE_TOKEN_MINT, marketPDA, true);
+      const ix = await (program.methods as any).claimReward().accounts({ market: marketPDA, prediction: predictionPDA, userProfile: userProfilePDA, platformState: platformStatePDA, user: publicKey, userTokenAccount, marketVault, tokenProgram: TOKEN_PROGRAM_ID }).instruction();
+      const tx = new Transaction().add(ix);
       const { blockhash } = await connection.getLatestBlockhash();
       tx.recentBlockhash = blockhash; tx.feePayer = publicKey;
       const sig = await sendTransaction(tx, connection);
       await connection.confirmTransaction(sig, 'confirmed');
-      setFaucetStatus('ok'); setFaucetMsg(`✓ Minted ${faucetAmt} OCT to ${faucetAddr.slice(0,8)}…`);
-    } catch(e:any) { setFaucetStatus('err'); setFaucetMsg(e?.message || 'Mint failed.'); }
-  };
-
-  const onChainMarkets = MARKETS.filter(m => MARKET_ADDRESSES[String(m.id)]);
-
-  const handleResolve = async (marketId: number, outcome: 'YES'|'NO') => {
-    if (!publicKey || !signTransaction) return;
-    const key = String(marketId);
-    setResolving(key + outcome);
-    try {
-      const idl = (await import('./src/oracle_token_idl.json')).default;
-      const { Program, AnchorProvider } = anchor;
-      const provider = new AnchorProvider(connection, { publicKey, signTransaction, signAllTransactions: async (txs) => txs } as any, { commitment:'confirmed' });
-      const program = new Program(idl as any, provider);
-      const [platformPda] = PublicKey.findProgramAddressSync([Buffer.from('platform')], PROGRAM_ID);
-      const marketPk = new PublicKey(MARKET_ADDRESSES[key]);
-      const optionIndex = outcome === 'YES' ? 0 : 1;
-      await (program.methods as any).adminResolveMarket(optionIndex).accounts({
-        market: marketPk, platformState: platformPda, admin: publicKey,
-      }).rpc();
-      setResolved(prev => ({ ...prev, [key]: outcome }));
-    } catch (e: any) {
-      alert('Resolve failed: ' + (e.message || String(e)));
-    } finally {
-      setResolving(null);
+      setClaimTx(t => ({ ...t, [pred.id]: sig }));
+      setClaimStatus(s => ({ ...s, [pred.id]: 'claimed' }));
+    } catch (err: any) {
+      console.error(err);
+      setClaimStatus(s => ({ ...s, [pred.id]: 'error' }));
     }
   };
 
-  if (!publicKey || publicKey.toString() !== ADMIN_PUBKEY) {
-    return (
-      <div style={{ maxWidth:600, margin:'80px auto', textAlign:'center', fontFamily:"'Space Grotesk',sans-serif" }}>
-        <div style={{ fontSize:48, marginBottom:16 }}>🔒</div>
-        <div style={{ fontSize:18, color:'rgba(255,255,255,.5)' }}>Admin access required.</div>
-        <div style={{ fontSize:13, color:'rgba(255,255,255,.25)', marginTop:8 }}>Connect the admin wallet to manage markets.</div>
-      </div>
-    );
-  }
+  const winners = MOCK_CLAIMABLE.filter(p => p.won);
+  const losers = MOCK_CLAIMABLE.filter(p => !p.won);
 
   return (
-    <div style={{ maxWidth:1200, margin:'0 auto', padding:'32px 28px', fontFamily:"'Space Grotesk',sans-serif" }}>
-      <div style={{ fontSize:10, letterSpacing:3, color:'rgba(245,158,11,.7)', textTransform:'uppercase', marginBottom:10 }}>Admin Panel</div>
-      <h1 style={{ fontSize:28, fontWeight:700, color:'white', letterSpacing:-.5, marginBottom:8 }}>Market Resolution</h1>
-      <p style={{ fontSize:13, color:'rgba(255,255,255,.35)', marginBottom:28 }}>Resolve on-chain markets by selecting the correct outcome.</p>
-
-      {/* Faucet */}
-      <div style={{ background:'rgba(13,13,43,.8)', border:'1px solid rgba(245,158,11,.15)', borderRadius:14, padding:'20px 22px', marginBottom:28 }}>
-        <div style={{ fontSize:12, fontWeight:600, color:'rgba(245,158,11,.8)', letterSpacing:1, textTransform:'uppercase', marginBottom:14 }}>💧 OCT Faucet</div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 120px 140px', gap:10, alignItems:'center' }}>
-          <input value={faucetAddr} onChange={e=>setFaucetAddr(e.target.value)} placeholder="Wallet address to fund" style={{ background:'rgba(255,255,255,.04)', border:'1px solid rgba(255,255,255,.1)', borderRadius:8, padding:'9px 12px', color:'white', fontSize:12, fontFamily:"'Space Grotesk',sans-serif" }} />
-          <input value={faucetAmt} onChange={e=>setFaucetAmt(e.target.value)} placeholder="Amount" type="number" style={{ background:'rgba(255,255,255,.04)', border:'1px solid rgba(255,255,255,.1)', borderRadius:8, padding:'9px 12px', color:'white', fontSize:12, fontFamily:"'Space Grotesk',sans-serif" }} />
-          <button onClick={handleFaucet} disabled={!faucetAddr||faucetStatus==='loading'} style={{ padding:'9px 0', borderRadius:8, border:'1px solid rgba(245,158,11,.3)', background:'rgba(245,158,11,.1)', color:'#f59e0b', fontSize:12, fontWeight:700, cursor: faucetAddr?'pointer':'not-allowed', fontFamily:"'Space Grotesk',sans-serif" }}>
-            {faucetStatus==='loading' ? 'Minting…' : 'Mint OCT'}
-          </button>
-        </div>
-        {faucetMsg && <div style={{ fontSize:11, marginTop:10, color: faucetStatus==='ok'?'#10b981':'#ef4444' }}>{faucetMsg}</div>}
-      </div>
-
-      <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-        {onChainMarkets.map(m => {
-          const key = String(m.id);
-          const res = resolved[key];
-          const isResolving = resolving?.startsWith(key);
-          return (
-            <div key={m.id} style={{ display:'grid', gridTemplateColumns:'1fr 160px 160px', gap:16, alignItems:'center', padding:'18px 22px', background:'rgba(13,13,43,.8)', border: res ? '1px solid rgba(16,185,129,.25)' : '1px solid rgba(245,158,11,.12)', borderRadius:14 }}>
-              <div>
-                <div style={{ fontSize:14, color:'white', fontWeight:600, marginBottom:4 }}>{m.question}</div>
-                <div style={{ fontSize:11, color:'rgba(255,255,255,.3)', letterSpacing:1 }}>{m.category} · {m.volume} volume · {m.participants.toLocaleString()} participants</div>
-                {res && <div style={{ fontSize:11, color:'#10b981', fontWeight:600, marginTop:6 }}>✓ Resolved {res}</div>}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {winners.length === 0 && (
+        <div style={{ padding: 48, textAlign: 'center', color: 'rgba(255,255,255,.25)', fontSize: 13, background: 'rgba(13,13,43,.6)', border: '1px solid rgba(139,92,246,.15)', borderRadius: 14 }}>No claimable rewards right now.</div>
+      )}
+      {winners.length > 0 && (
+        <div style={{ background: 'rgba(13,13,43,.6)', border: '1px solid rgba(16,185,129,.2)', borderRadius: 14, overflow: 'hidden' }}>
+          <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,.06)', background: 'rgba(16,185,129,.05)', fontSize: 11, color: 'rgba(16,185,129,.7)', letterSpacing: 2, textTransform: 'uppercase' as const }}>Winning predictions — {winners.length} claimable</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 120px 140px', gap: 16, padding: '10px 20px', borderBottom: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)' }}>
+            {['Market', 'Your Side', 'Staked', 'Payout', ''].map((h, i) => (
+              <div key={i} style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', letterSpacing: 2, textTransform: 'uppercase' as const }}>{h}</div>
+            ))}
+          </div>
+          {winners.map((pred, idx) => {
+            const status = claimStatus[pred.id] || 'idle';
+            return (
+              <div key={pred.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 120px 140px', gap: 16, padding: '14px 20px', borderBottom: idx < winners.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,.85)', marginBottom: 3 }}>{pred.market}</div>
+                  <div style={{ fontSize: 10, color: 'rgba(16,185,129,.5)', letterSpacing: .5 }}>Resolved: {pred.resolvedOutcome} ✓</div>
+                </div>
+                <div style={{ fontSize: 11, padding: '3px 9px', borderRadius: 5, background: pred.side === 'Yes' ? 'rgba(16,185,129,.12)' : 'rgba(239,68,68,.12)', color: pred.side === 'Yes' ? '#10b981' : '#ef4444', fontWeight: 600, display: 'inline-block', textTransform: 'uppercase' as const }}>{pred.side}</div>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,.5)', fontWeight: 500 }}>{pred.amount} OCT</div>
+                <div style={{ fontSize: 13, color: '#10b981', fontWeight: 600 }}>+{pred.potential} OCT</div>
+                <div>
+                  {status === 'claimed' ? (
+                    <div style={{ fontSize: 11, color: 'rgba(16,185,129,.7)' }}>
+                      ✓ Claimed
+                      {claimTx[pred.id] && <a href={`https://explorer.solana.com/tx/${claimTx[pred.id]}?cluster=devnet`} target="_blank" rel="noreferrer" style={{ marginLeft: 6, color: 'rgba(139,92,246,.6)', fontSize: 10 }}>tx ↗</a>}
+                    </div>
+                  ) : status === 'error' ? (
+                    <div style={{ fontSize: 11, color: '#ef4444' }}>Failed</div>
+                  ) : (
+                    <button onClick={() => handleClaim(pred)} disabled={status === 'loading' || !publicKey} style={{ padding: '7px 16px', background: 'rgba(16,185,129,.12)', border: '1px solid rgba(16,185,129,.3)', borderRadius: 8, color: '#10b981', fontSize: 12, fontWeight: 600, cursor: status === 'loading' ? 'default' : 'pointer', fontFamily: "'Space Grotesk',sans-serif", opacity: status === 'loading' ? .6 : 1, transition: 'all .2s' }}>
+                      {status === 'loading' ? 'Claiming…' : 'Claim Reward'}
+                    </button>
+                  )}
+                </div>
               </div>
-              {res ? (
-                <div style={{ gridColumn:'span 2', textAlign:'right', fontSize:13, color:'rgba(255,255,255,.3)' }}>Market resolved</div>
-              ) : (
-                <>
-                  <button onClick={()=>handleResolve(m.id,'YES')} disabled={!!resolving} style={{ padding:'10px 0', borderRadius:10, border:'1px solid rgba(16,185,129,.3)', background:'linear-gradient(135deg,rgba(16,185,129,.2),rgba(16,185,129,.1))', color:'#10b981', fontSize:13, fontWeight:700, cursor:resolving?'not-allowed':'pointer', fontFamily:"'Space Grotesk',sans-serif" }}>
-                    {resolving===key+'YES' ? 'Resolving…' : '✓ Resolve YES'}
-                  </button>
-                  <button onClick={()=>handleResolve(m.id,'NO')} disabled={!!resolving} style={{ padding:'10px 0', borderRadius:10, border:'1px solid rgba(239,68,68,.3)', background:'linear-gradient(135deg,rgba(239,68,68,.2),rgba(239,68,68,.1))', color:'#ef4444', fontSize:13, fontWeight:700, cursor:resolving?'not-allowed':'pointer', fontFamily:"'Space Grotesk',sans-serif" }}>
-                    {resolving===key+'NO' ? 'Resolving…' : '✗ Resolve NO'}
-                  </button>
-                </>
-              )}
+            );
+          })}
+        </div>
+      )}
+      {losers.length > 0 && (
+        <div style={{ background: 'rgba(13,13,43,.6)', border: '1px solid rgba(239,68,68,.12)', borderRadius: 14, overflow: 'hidden' }}>
+          <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,.06)', fontSize: 11, color: 'rgba(239,68,68,.4)', letterSpacing: 2, textTransform: 'uppercase' as const }}>Lost predictions</div>
+          {losers.map((pred, idx) => (
+            <div key={pred.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 100px 120px', gap: 16, padding: '12px 20px', borderBottom: idx < losers.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,.35)' }}>{pred.market}</div>
+                <div style={{ fontSize: 10, color: 'rgba(239,68,68,.35)', marginTop: 2 }}>Resolved: {pred.resolvedOutcome}</div>
+              </div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.2)', textTransform: 'uppercase' as const }}>{pred.side}</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.2)' }}>{pred.amount} OCT</div>
+              <div style={{ fontSize: 11, color: 'rgba(239,68,68,.4)' }}>— no payout</div>
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -1063,7 +925,7 @@ const ActivityPage: FC = () => {
       </div>
 
       <div style={{ display:'flex', gap:0, borderBottom:'1px solid rgba(255,255,255,.08)', marginBottom:20 }}>
-        {[['active',`Active (${ACTIVE_BETS.length})`],['claim','🎁 Claim Rewards'],['history',`History (${BET_HISTORY.length})`]].map(([t,l])=>(
+        {[['active',`Active (${ACTIVE_BETS.length})`],['claim','Claim Rewards'],['history',`History (${BET_HISTORY.length})`]].map(([t,l])=>(
           <button key={t} onClick={()=>setTab(t as any)} style={{ padding:'10px 22px', background:'none', border:'none', color: tab===t?'white':'rgba(255,255,255,.4)', fontSize:14, fontWeight: tab===t?600:400, cursor:'pointer', fontFamily:"'Space Grotesk',sans-serif", borderBottom: tab===t?'2px solid #7c3aed':'2px solid transparent', marginBottom:-1, transition:'all .2s' }}>{l}</button>
         ))}
       </div>
@@ -1259,7 +1121,9 @@ const Navbar: FC<{ page:Page; setPage:(p:Page)=>void; octBalance:number; connect
         {([['markets','Markets'],['leaderboard','Leaderboard'],['activity','Activity'],['analytics','Analytics']] as const).map(([p,l])=>(
           <button key={p} onClick={()=>setPage(p)} className={`nav-btn${page===p?' active':''}`} style={{ background:'none', border:'none', padding:'8px 16px', color: page===p?'white':'rgba(255,255,255,.5)', fontSize:14, cursor:'pointer', fontFamily:"'Space Grotesk',sans-serif", fontWeight: page===p?600:400 }}>{l}</button>
         ))}
-        {isAdmin && <button onClick={()=>setPage('admin')} className={`nav-btn${page==='admin'?' active':''}`} style={{ background:'none', border:'none', padding:'8px 16px', color: page==='admin'?'#f59e0b':'rgba(245,158,11,.5)', fontSize:14, cursor:'pointer', fontFamily:"'Space Grotesk',sans-serif", fontWeight: page==='admin'?600:400 }}>⚡ Admin</button>}
+        {isAdmin && (
+          <button onClick={()=>setPage('admin' as any)} className={`nav-btn${page==='admin'?' active':''}`} style={{ background:'none', border:'none', padding:'8px 16px', color: page==='admin'?'#f59e0b':'rgba(245,158,11,.5)', fontSize:14, cursor:'pointer', fontFamily:"'Space Grotesk',sans-serif", fontWeight: page==='admin'?600:400 }}>⚡ Admin</button>
+        )}
       </nav>
       {/* Right */}
       <div style={{ display:'flex', alignItems:'center', gap:10 }}>
@@ -1320,6 +1184,108 @@ const SpaceBg: FC = () => (
   </div>
 );
 
+// ─── Admin Page ───────────────────────────────────────────────────────────────
+const AdminPage: FC = () => {
+  const { publicKey, sendTransaction } = useWallet();
+  const { connection } = useConnection();
+  const [resolveStatus, setResolveStatus] = useState<Record<string, 'idle'|'loading'|'resolved'|'error'>>({});
+  const [resolveTx, setResolveTx] = useState<Record<string, string>>({});
+  const [resolvedOption, setResolvedOption] = useState<Record<string, number>>({});
+
+  const handleResolve = async (marketId: string, optionIndex: number) => {
+    if (!publicKey) return;
+    setResolveStatus(s => ({ ...s, [marketId]: 'loading' }));
+    try {
+      const { PublicKey, Transaction } = await import('@solana/web3.js');
+      const { Program, AnchorProvider } = anchor;
+      const marketPDA = new PublicKey(MARKET_ADDRESSES[marketId]);
+      const idl = (await import('./target/idl/oracle_token.json')).default;
+      const provider = new AnchorProvider(connection, { publicKey, signTransaction: async (tx: any) => tx, signAllTransactions: async (txs: any) => txs } as any, { commitment: 'confirmed' });
+      const program = new Program(idl as any, provider);
+      const [platformStatePDA] = PublicKey.findProgramAddressSync([Buffer.from('platform')], PROGRAM_ID);
+      const ix = await (program.methods as any).adminResolveMarket(optionIndex).accounts({ market: marketPDA, platformState: platformStatePDA, admin: publicKey }).instruction();
+      const tx = new Transaction().add(ix);
+      const { blockhash } = await connection.getLatestBlockhash();
+      tx.recentBlockhash = blockhash; tx.feePayer = publicKey;
+      const sig = await sendTransaction(tx, connection);
+      await connection.confirmTransaction(sig, 'confirmed');
+      setResolveTx(t => ({ ...t, [marketId]: sig }));
+      setResolvedOption(r => ({ ...r, [marketId]: optionIndex }));
+      setResolveStatus(s => ({ ...s, [marketId]: 'resolved' }));
+    } catch (err: any) {
+      console.error(err);
+      setResolveStatus(s => ({ ...s, [marketId]: 'error' }));
+    }
+  };
+
+  const resolvableMarkets = MARKETS.filter(m => MARKET_ADDRESSES[m.id.toString()]);
+
+  return (
+    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 28px', fontFamily: "'Space Grotesk',sans-serif" }}>
+      <div style={{ fontSize: 10, letterSpacing: 3, color: 'rgba(245,158,11,.7)', textTransform: 'uppercase', marginBottom: 8 }}>Admin</div>
+      <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', letterSpacing: -.5, marginBottom: 6 }}>Resolve Markets</h1>
+      <p style={{ fontSize: 13, color: 'rgba(255,255,255,.35)', marginBottom: 28 }}>Admin-only · {resolvableMarkets.length} markets with on-chain addresses</p>
+
+      {!publicKey && (
+        <div style={{ padding: 32, textAlign: 'center', color: 'rgba(255,255,255,.3)', fontSize: 13, background: 'rgba(13,13,43,.6)', border: '1px solid rgba(139,92,246,.15)', borderRadius: 14 }}>
+          Connect your admin wallet to resolve markets.
+        </div>
+      )}
+
+      {publicKey && (
+        <div style={{ background: 'rgba(13,13,43,.6)', border: '1px solid rgba(139,92,246,.15)', borderRadius: 14, overflow: 'hidden' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 120px 200px', gap: 16, padding: '10px 20px', borderBottom: '1px solid rgba(255,255,255,.06)', background: 'rgba(255,255,255,.02)' }}>
+            {['Market', 'Category', 'Volume', 'Status', 'Action'].map((h, i) => (
+              <div key={i} style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', letterSpacing: 2, textTransform: 'uppercase' as const }}>{h}</div>
+            ))}
+          </div>
+          {resolvableMarkets.map((market, idx) => {
+            const status = resolveStatus[market.id.toString()] || 'idle';
+            const isResolved = status === 'resolved';
+            const isLoading = status === 'loading';
+            const winOption = resolvedOption[market.id.toString()];
+            return (
+              <div key={market.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 120px 200px', gap: 16, padding: '16px 20px', borderBottom: idx < resolvableMarkets.length - 1 ? '1px solid rgba(255,255,255,.05)' : 'none', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: 13, color: isResolved ? 'rgba(255,255,255,.4)' : 'rgba(255,255,255,.85)', marginBottom: 2 }}>{market.question}</div>
+                  {isResolved && resolveTx[market.id.toString()] && (
+                    <a href={`https://explorer.solana.com/tx/${resolveTx[market.id.toString()]}?cluster=devnet`} target="_blank" rel="noreferrer" style={{ fontSize: 10, color: 'rgba(139,92,246,.6)' }}>tx ↗</a>
+                  )}
+                </div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)' }}>{market.category}</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)' }}>{market.volume}</div>
+                <div>
+                  {isResolved ? (
+                    <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 5, background: 'rgba(16,185,129,.12)', color: '#10b981', fontWeight: 600 }}>
+                      {winOption === 0 ? 'YES' : 'NO'} ✓
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 5, background: 'rgba(245,158,11,.1)', color: 'rgba(245,158,11,.8)', fontWeight: 600 }}>Active</span>
+                  )}
+                </div>
+                <div>
+                  {isResolved ? (
+                    <span style={{ fontSize: 11, color: 'rgba(16,185,129,.5)' }}>✓ Done</span>
+                  ) : (
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={() => handleResolve(market.id.toString(), 0)} disabled={isLoading} style={{ padding: '7px 16px', background: 'rgba(16,185,129,.1)', border: '1px solid rgba(16,185,129,.3)', borderRadius: 8, color: '#10b981', fontSize: 12, fontWeight: 600, cursor: isLoading ? 'default' : 'pointer', opacity: isLoading ? .5 : 1, fontFamily: "'Space Grotesk',sans-serif", transition: 'all .2s' }}>
+                        {isLoading ? '…' : 'YES'}
+                      </button>
+                      <button onClick={() => handleResolve(market.id.toString(), 1)} disabled={isLoading} style={{ padding: '7px 16px', background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', borderRadius: 8, color: '#ef4444', fontSize: 12, fontWeight: 600, cursor: isLoading ? 'default' : 'pointer', opacity: isLoading ? .5 : 1, fontFamily: "'Space Grotesk',sans-serif", transition: 'all .2s' }}>
+                        {isLoading ? '…' : 'NO'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Main App ─────────────────────────────────────────────────────────────────
 const MainApp: FC = () => {
   const { publicKey, connected } = useWallet();
@@ -1375,3 +1341,4 @@ const OracleTokenApp: FC = () => {
 };
 
 export default OracleTokenApp;
+
