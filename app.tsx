@@ -45,6 +45,16 @@ const LEADERBOARD_DATA = [
   { rank: 8, username: "You", avatar: "🔮", tokens: 0, winRate: 0, predictions: 0, tier: "Novice", focus: "All" },
 ];
 
+const ADMIN_PUBKEY = '7RR7sRug2FRHaodbNsTNYZKMciLEkSH6w3qrxjZ6A256';
+
+const MARKET_ADDRESSES: Record<string, string> = {
+  '1': '5ZHfybcV5sSf7uZ6PemM2pychytL6wbXmdnwaiWbbMPp',
+  '2': 'CuvChQETTNKYcnDNJwTQccQkQwJpuK8tqv3KWfwB7Jd2',
+  '3': '3YpbeWS4cRgSJacfu9GunkY1MFB7TjTaZp8FbGyU13hT',
+  '4': 'BZe7kfxUPYsf4QGt36Z7G9ivanfv7aeXdRyNaWZimY82',
+  '5': '6j44qDgHMgyzyMAF2sWSC5DtJNtM3TUiQh7MphXLzsv7',
+};
+
 const ACTIVITY_FEED = [
   { user: "Alice", action: "bought", amount: "$400", side: "YES", market: "Eth ETF", time: "2m ago", color: "#00d4aa" },
   { user: "Tom", action: "sold", amount: "$200", side: "NO", market: "Trump 2028", time: "3m ago", color: "#ff6b6b" },
@@ -344,7 +354,7 @@ const BetModal: FC<{ market: any; onClose: () => void }> = ({ market, onClose })
     try {
       const { PublicKey: PK, Transaction, SystemProgram } = await import('@solana/web3.js');
       const { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } = await import('@solana/spl-token');
-      const idl = (await import('./target/idl/oracle_token.json')).default;
+      const idl = (await import('./src/oracle_token_idl.json')).default;
       const { Program, AnchorProvider, BN } = anchor;
       const MARKET_PDA = new PK('CuvChQETTNKYcnDNJwTQccQkQwJpuK8tqv3KWfwB7Jd2');
       const provider = new AnchorProvider(connection, { publicKey, signTransaction:async(tx:any)=>tx, signAllTransactions:async(txs:any)=>txs } as any, { commitment:'confirmed' });
@@ -780,9 +790,161 @@ const LeaderboardPage: FC<{ octBalance: number }> = ({ octBalance }) => {
   );
 };
 
+// ─── Claim Rewards Tab ────────────────────────────────────────────────────────
+const CLAIMABLE_PREDICTIONS = [
+  { id: 1, market: "Bitcoin ETF approved?", category: "Crypto", side: "Yes", amount: 1500, reward: 2250, marketAddr: MARKET_ADDRESSES['1'] },
+  { id: 2, market: "Fed rate cut Sept 2024?", category: "Finance", side: "Yes", amount: 800, reward: 1440, marketAddr: MARKET_ADDRESSES['3'] },
+];
+
+const ClaimRewardsTab: FC = () => {
+  const { publicKey, signTransaction } = useWallet();
+  const { connection } = useConnection();
+  const [claiming, setClaiming] = useState<number | null>(null);
+  const [claimed, setClaimed] = useState<Set<number>>(new Set());
+
+  const handleClaim = async (pred: typeof CLAIMABLE_PREDICTIONS[0]) => {
+    if (!publicKey || !signTransaction) return;
+    setClaiming(pred.id);
+    try {
+      const idl = (await import('./src/oracle_token_idl.json')).default;
+      const { Program, AnchorProvider, BN } = anchor;
+      const provider = new AnchorProvider(connection, { publicKey, signTransaction, signAllTransactions: async (txs) => txs } as any, { commitment:'confirmed' });
+      const program = new Program(idl as any, provider);
+      const [platformPda] = PublicKey.findProgramAddressSync([Buffer.from('platform')], PROGRAM_ID);
+      const [profilePda] = PublicKey.findProgramAddressSync([Buffer.from('profile'), publicKey.toBuffer()], PROGRAM_ID);
+      const marketPk = new PublicKey(pred.marketAddr);
+      const [predPda] = PublicKey.findProgramAddressSync([Buffer.from('prediction'), publicKey.toBuffer(), marketPk.toBuffer()], PROGRAM_ID);
+      const { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } = await import('@solana/spl-token');
+      const { ASSOCIATED_TOKEN_PROGRAM_ID } = await import('@solana/spl-token');
+      const userTokenAcc = await getAssociatedTokenAddress(ORACLE_TOKEN_MINT, publicKey);
+      const platformTokenAcc = await getAssociatedTokenAddress(ORACLE_TOKEN_MINT, platformPda, true);
+      await (program.methods as any).claimReward().accounts({
+        prediction: predPda, market: marketPk, userProfile: profilePda,
+        platformState: platformPda, user: publicKey,
+        userTokenAccount: userTokenAcc, platformTokenAccount: platformTokenAcc,
+        tokenMint: ORACLE_TOKEN_MINT, tokenProgram: TOKEN_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      }).rpc();
+      setClaimed(prev => new Set([...prev, pred.id]));
+    } catch (e: any) {
+      alert('Claim failed: ' + (e.message || String(e)));
+    } finally {
+      setClaiming(null);
+    }
+  };
+
+  if (CLAIMABLE_PREDICTIONS.length === 0) {
+    return <div style={{ textAlign:'center', color:'rgba(255,255,255,.3)', padding:'60px 0', fontSize:14 }}>No claimable rewards yet.</div>;
+  }
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+      {CLAIMABLE_PREDICTIONS.map(pred => (
+        <div key={pred.id} style={{ display:'grid', gridTemplateColumns:'1fr 80px 100px 120px 140px', gap:16, alignItems:'center', padding:'16px 20px', background:'rgba(13,13,43,.7)', border:'1px solid rgba(16,185,129,.2)', borderRadius:12 }}>
+          <div>
+            <div style={{ fontSize:13, color:'rgba(255,255,255,.85)', marginBottom:3 }}>{pred.market}</div>
+            <div style={{ fontSize:10, color:'rgba(255,255,255,.3)', textTransform:'uppercase', letterSpacing:1 }}>{pred.category} · Resolved</div>
+          </div>
+          <div style={{ fontSize:11, padding:'3px 9px', borderRadius:5, background: pred.side==='Yes'?'rgba(16,185,129,.12)':'rgba(239,68,68,.12)', color: pred.side==='Yes'?'#10b981':'#ef4444', fontWeight:600, textTransform:'uppercase', display:'inline-block' }}>{pred.side}</div>
+          <div style={{ fontSize:13, color:'rgba(255,255,255,.5)', fontWeight:500 }}>{pred.amount} OCT</div>
+          <div style={{ fontSize:14, fontWeight:700, color:'#10b981' }}>+{pred.reward} OCT</div>
+          {claimed.has(pred.id) ? (
+            <div style={{ fontSize:12, color:'#10b981', fontWeight:600, textAlign:'center' }}>✓ Claimed</div>
+          ) : (
+            <button onClick={()=>handleClaim(pred)} disabled={!publicKey || claiming===pred.id} style={{ padding:'8px 18px', borderRadius:8, border:'none', background: publicKey?'linear-gradient(135deg,#10b981,#059669)':'rgba(255,255,255,.08)', color: publicKey?'white':'rgba(255,255,255,.3)', fontSize:12, fontWeight:600, cursor: publicKey?'pointer':'not-allowed', fontFamily:"'Space Grotesk',sans-serif" }}>
+              {claiming===pred.id ? 'Claiming…' : 'Claim Reward'}
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// ─── Admin Page ───────────────────────────────────────────────────────────────
+const AdminPage: FC = () => {
+  const { publicKey, signTransaction } = useWallet();
+  const { connection } = useConnection();
+  const [resolving, setResolving] = useState<string | null>(null);
+  const [resolved, setResolved] = useState<Record<string, 'YES'|'NO'>>({});
+
+  const onChainMarkets = MARKETS.filter(m => MARKET_ADDRESSES[String(m.id)]);
+
+  const handleResolve = async (marketId: number, outcome: 'YES'|'NO') => {
+    if (!publicKey || !signTransaction) return;
+    const key = String(marketId);
+    setResolving(key + outcome);
+    try {
+      const idl = (await import('./src/oracle_token_idl.json')).default;
+      const { Program, AnchorProvider } = anchor;
+      const provider = new AnchorProvider(connection, { publicKey, signTransaction, signAllTransactions: async (txs) => txs } as any, { commitment:'confirmed' });
+      const program = new Program(idl as any, provider);
+      const [platformPda] = PublicKey.findProgramAddressSync([Buffer.from('platform')], PROGRAM_ID);
+      const marketPk = new PublicKey(MARKET_ADDRESSES[key]);
+      const optionIndex = outcome === 'YES' ? 0 : 1;
+      await (program.methods as any).adminResolveMarket(optionIndex).accounts({
+        market: marketPk, platformState: platformPda, admin: publicKey,
+      }).rpc();
+      setResolved(prev => ({ ...prev, [key]: outcome }));
+    } catch (e: any) {
+      alert('Resolve failed: ' + (e.message || String(e)));
+    } finally {
+      setResolving(null);
+    }
+  };
+
+  if (!publicKey || publicKey.toString() !== ADMIN_PUBKEY) {
+    return (
+      <div style={{ maxWidth:600, margin:'80px auto', textAlign:'center', fontFamily:"'Space Grotesk',sans-serif" }}>
+        <div style={{ fontSize:48, marginBottom:16 }}>🔒</div>
+        <div style={{ fontSize:18, color:'rgba(255,255,255,.5)' }}>Admin access required.</div>
+        <div style={{ fontSize:13, color:'rgba(255,255,255,.25)', marginTop:8 }}>Connect the admin wallet to manage markets.</div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ maxWidth:1200, margin:'0 auto', padding:'32px 28px', fontFamily:"'Space Grotesk',sans-serif" }}>
+      <div style={{ fontSize:10, letterSpacing:3, color:'rgba(245,158,11,.7)', textTransform:'uppercase', marginBottom:10 }}>Admin Panel</div>
+      <h1 style={{ fontSize:28, fontWeight:700, color:'white', letterSpacing:-.5, marginBottom:8 }}>Market Resolution</h1>
+      <p style={{ fontSize:13, color:'rgba(255,255,255,.35)', marginBottom:28 }}>Resolve on-chain markets by selecting the correct outcome.</p>
+
+      <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+        {onChainMarkets.map(m => {
+          const key = String(m.id);
+          const res = resolved[key];
+          const isResolving = resolving?.startsWith(key);
+          return (
+            <div key={m.id} style={{ display:'grid', gridTemplateColumns:'1fr 160px 160px', gap:16, alignItems:'center', padding:'18px 22px', background:'rgba(13,13,43,.8)', border: res ? '1px solid rgba(16,185,129,.25)' : '1px solid rgba(245,158,11,.12)', borderRadius:14 }}>
+              <div>
+                <div style={{ fontSize:14, color:'white', fontWeight:600, marginBottom:4 }}>{m.question}</div>
+                <div style={{ fontSize:11, color:'rgba(255,255,255,.3)', letterSpacing:1 }}>{m.category} · {m.volume} volume · {m.participants.toLocaleString()} participants</div>
+                {res && <div style={{ fontSize:11, color:'#10b981', fontWeight:600, marginTop:6 }}>✓ Resolved {res}</div>}
+              </div>
+              {res ? (
+                <div style={{ gridColumn:'span 2', textAlign:'right', fontSize:13, color:'rgba(255,255,255,.3)' }}>Market resolved</div>
+              ) : (
+                <>
+                  <button onClick={()=>handleResolve(m.id,'YES')} disabled={!!resolving} style={{ padding:'10px 0', borderRadius:10, border:'none', background:'linear-gradient(135deg,rgba(16,185,129,.2),rgba(16,185,129,.1))', border:'1px solid rgba(16,185,129,.3)', color:'#10b981', fontSize:13, fontWeight:700, cursor:resolving?'not-allowed':'pointer', fontFamily:"'Space Grotesk',sans-serif" }}>
+                    {resolving===key+'YES' ? 'Resolving…' : '✓ Resolve YES'}
+                  </button>
+                  <button onClick={()=>handleResolve(m.id,'NO')} disabled={!!resolving} style={{ padding:'10px 0', borderRadius:10, border:'none', background:'linear-gradient(135deg,rgba(239,68,68,.2),rgba(239,68,68,.1))', border:'1px solid rgba(239,68,68,.3)', color:'#ef4444', fontSize:13, fontWeight:700, cursor:resolving?'not-allowed':'pointer', fontFamily:"'Space Grotesk',sans-serif" }}>
+                    {resolving===key+'NO' ? 'Resolving…' : '✗ Resolve NO'}
+                  </button>
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 // ─── Activity / Predictions ───────────────────────────────────────────────────
 const ActivityPage: FC = () => {
-  const [tab, setTab] = useState<'active'|'history'>('active');
+  const [tab, setTab] = useState<'active'|'claim'|'history'>('active');
   const wins = BET_HISTORY.filter(b=>b.result==='Won').length;
   const pnl = BET_HISTORY.reduce((s,b)=>s+b.profit,0);
 
@@ -807,7 +969,7 @@ const ActivityPage: FC = () => {
       </div>
 
       <div style={{ display:'flex', gap:0, borderBottom:'1px solid rgba(255,255,255,.08)', marginBottom:20 }}>
-        {[['active',`Active (${ACTIVE_BETS.length})`],['history',`History (${BET_HISTORY.length})`]].map(([t,l])=>(
+        {[['active',`Active (${ACTIVE_BETS.length})`],['claim','🎁 Claim Rewards'],['history',`History (${BET_HISTORY.length})`]].map(([t,l])=>(
           <button key={t} onClick={()=>setTab(t as any)} style={{ padding:'10px 22px', background:'none', border:'none', color: tab===t?'white':'rgba(255,255,255,.4)', fontSize:14, fontWeight: tab===t?600:400, cursor:'pointer', fontFamily:"'Space Grotesk',sans-serif", borderBottom: tab===t?'2px solid #7c3aed':'2px solid transparent', marginBottom:-1, transition:'all .2s' }}>{l}</button>
         ))}
       </div>
@@ -834,6 +996,8 @@ const ActivityPage: FC = () => {
           ))}
         </div>
       )}
+
+      {tab==='claim' && <ClaimRewardsTab />}
 
       {tab==='history' && (
         <div style={{ background:'rgba(13,13,43,.6)', border:'1px solid rgba(139,92,246,.15)', borderRadius:14, overflow:'hidden' }}>
@@ -983,9 +1147,12 @@ const AnalyticsPage: FC = () => {
 };
 
 // ─── Navbar ───────────────────────────────────────────────────────────────────
-type Page = 'markets'|'leaderboard'|'activity'|'analytics'|'create';
+type Page = 'markets'|'leaderboard'|'activity'|'analytics'|'create'|'admin';
 
-const Navbar: FC<{ page:Page; setPage:(p:Page)=>void; octBalance:number; connected:boolean }> = ({ page, setPage, octBalance, connected }) => (
+const Navbar: FC<{ page:Page; setPage:(p:Page)=>void; octBalance:number; connected:boolean }> = ({ page, setPage, octBalance, connected }) => {
+  const { publicKey } = useWallet();
+  const isAdmin = publicKey?.toString() === ADMIN_PUBKEY;
+  return (
   <header style={{ position:'sticky', top:0, zIndex:50, background:'rgba(6,6,26,.92)', backdropFilter:'blur(16px)', borderBottom:'1px solid rgba(139,92,246,.15)', fontFamily:"'Space Grotesk',sans-serif" }}>
     <div style={{ maxWidth:1240, margin:'0 auto', padding:'0 28px', display:'flex', alignItems:'center', justifyContent:'space-between', height:58 }}>
       {/* Logo */}
@@ -998,6 +1165,7 @@ const Navbar: FC<{ page:Page; setPage:(p:Page)=>void; octBalance:number; connect
         {([['markets','Markets'],['leaderboard','Leaderboard'],['activity','Activity'],['analytics','Analytics']] as const).map(([p,l])=>(
           <button key={p} onClick={()=>setPage(p)} className={`nav-btn${page===p?' active':''}`} style={{ background:'none', border:'none', padding:'8px 16px', color: page===p?'white':'rgba(255,255,255,.5)', fontSize:14, cursor:'pointer', fontFamily:"'Space Grotesk',sans-serif", fontWeight: page===p?600:400 }}>{l}</button>
         ))}
+        {isAdmin && <button onClick={()=>setPage('admin')} className={`nav-btn${page==='admin'?' active':''}`} style={{ background:'none', border:'none', padding:'8px 16px', color: page==='admin'?'#f59e0b':'rgba(245,158,11,.5)', fontSize:14, cursor:'pointer', fontFamily:"'Space Grotesk',sans-serif", fontWeight: page==='admin'?600:400 }}>⚡ Admin</button>}
       </nav>
       {/* Right */}
       <div style={{ display:'flex', alignItems:'center', gap:10 }}>
@@ -1087,6 +1255,7 @@ const MainApp: FC = () => {
       {page==='activity' && <ActivityPage />}
       {page==='analytics' && <AnalyticsPage />}
       {page==='create' && <CreateMarketPage />}
+      {page==='admin' && <AdminPage />}
       <Footer />
     </>
   );
