@@ -851,24 +851,34 @@ const ClaimRewardsTab: FC = () => {
     if (!publicKey) return;
     setClaimStatus(s => ({ ...s, [pred.id]: 'loading' }));
     try {
-      const { PublicKey, Transaction } = await import('@solana/web3.js');
+      const { PublicKey, Transaction, TransactionInstruction } = await import('@solana/web3.js');
       const { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } = await import('@solana/spl-token');
-      const { Program, AnchorProvider } = anchor;
       const marketPDA = new PublicKey(MARKET_ADDRESSES[pred.marketId]);
-      const idl = (await import('./src/oracle_token_idl.json')).default;
-      const provider = new AnchorProvider(connection, { publicKey, signTransaction: async (tx: any) => tx, signAllTransactions: async (txs: any) => txs } as any, { commitment: 'confirmed' });
-      const program = new Program(idl as any, provider);
       const [predictionPDA] = PublicKey.findProgramAddressSync([Buffer.from('prediction'), publicKey.toBuffer(), marketPDA.toBuffer()], PROGRAM_ID);
       const [userProfilePDA] = PublicKey.findProgramAddressSync([Buffer.from('profile'), publicKey.toBuffer()], PROGRAM_ID);
       const [platformStatePDA] = PublicKey.findProgramAddressSync([Buffer.from('platform')], PROGRAM_ID);
       const userTokenAccount = await getAssociatedTokenAddress(ORACLE_TOKEN_MINT, publicKey);
       const marketVault = await getAssociatedTokenAddress(ORACLE_TOKEN_MINT, marketPDA, true);
-      const ix = await (program.methods as any).claimReward().accounts({ market: marketPDA, prediction: predictionPDA, userProfile: userProfilePDA, platformState: platformStatePDA, user: publicKey, userTokenAccount, marketVault, tokenProgram: TOKEN_PROGRAM_ID }).instruction();
+      // claim_reward discriminator from IDL: [149,95,181,242,94,90,158,162]
+      const ix = new TransactionInstruction({
+        programId: PROGRAM_ID,
+        keys: [
+          { pubkey: marketPDA,        isSigner: false, isWritable: true },
+          { pubkey: predictionPDA,    isSigner: false, isWritable: true },
+          { pubkey: userProfilePDA,   isSigner: false, isWritable: true },
+          { pubkey: platformStatePDA, isSigner: false, isWritable: false },
+          { pubkey: publicKey,        isSigner: true,  isWritable: true },
+          { pubkey: userTokenAccount, isSigner: false, isWritable: true },
+          { pubkey: marketVault,      isSigner: false, isWritable: true },
+          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        ],
+        data: Buffer.from([149, 95, 181, 242, 94, 90, 158, 162]),
+      });
       const tx = new Transaction().add(ix);
-      const { blockhash } = await connection.getLatestBlockhash();
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
       tx.recentBlockhash = blockhash; tx.feePayer = publicKey;
       const sig = await sendTransaction(tx, connection);
-      await connection.confirmTransaction(sig, 'confirmed');
+      await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
       setClaimTx(t => ({ ...t, [pred.id]: sig }));
       setClaimStatus(s => ({ ...s, [pred.id]: 'claimed' }));
     } catch (err: any) {
@@ -1241,19 +1251,26 @@ const AdminPage: FC = () => {
     if (!publicKey) return;
     setResolveStatus(s => ({ ...s, [marketId]: 'loading' }));
     try {
-      const { PublicKey, Transaction } = await import('@solana/web3.js');
-      const { Program, AnchorProvider } = anchor;
+      const { PublicKey, Transaction, TransactionInstruction } = await import('@solana/web3.js');
       const marketPDA = new PublicKey(MARKET_ADDRESSES[marketId]);
-      const idl = (await import('./src/oracle_token_idl.json')).default;
-      const provider = new AnchorProvider(connection, { publicKey, signTransaction: async (tx: any) => tx, signAllTransactions: async (txs: any) => txs } as any, { commitment: 'confirmed' });
-      const program = new Program(idl as any, provider);
       const [platformStatePDA] = PublicKey.findProgramAddressSync([Buffer.from('platform')], PROGRAM_ID);
-      const ix = await (program.methods as any).adminResolveMarket(optionIndex).accounts({ market: marketPDA, platformState: platformStatePDA, admin: publicKey }).instruction();
+      // admin_resolve_market discriminator: sha256("global:admin_resolve_market")[..8]
+      const disc = Buffer.from([95, 0, 240, 167, 32, 165, 176, 233]);
+      const optBuf = Buffer.alloc(1); optBuf.writeUInt8(optionIndex, 0);
+      const ix = new TransactionInstruction({
+        programId: PROGRAM_ID,
+        keys: [
+          { pubkey: marketPDA,        isSigner: false, isWritable: true },
+          { pubkey: platformStatePDA, isSigner: false, isWritable: false },
+          { pubkey: publicKey,        isSigner: true,  isWritable: true },
+        ],
+        data: Buffer.concat([disc, optBuf]),
+      });
       const tx = new Transaction().add(ix);
-      const { blockhash } = await connection.getLatestBlockhash();
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
       tx.recentBlockhash = blockhash; tx.feePayer = publicKey;
       const sig = await sendTransaction(tx, connection);
-      await connection.confirmTransaction(sig, 'confirmed');
+      await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
       setResolveTx(t => ({ ...t, [marketId]: sig }));
       setResolvedOption(r => ({ ...r, [marketId]: optionIndex }));
       setResolveStatus(s => ({ ...s, [marketId]: 'resolved' }));
