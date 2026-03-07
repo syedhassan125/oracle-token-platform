@@ -378,7 +378,18 @@ const BetModal: FC<{ market: any; onClose: () => void }> = ({ market, onClose })
       const sig = await sendTransaction(tx,connection);
       await connection.confirmTransaction(sig,'confirmed');
       setTxSig(sig); setStatus('success');
-    } catch(e:any) { setErr(e?.message||'Transaction failed.'); setStatus('error'); }
+    } catch(e:any) {
+      const logs = (e?.logs as string[]|undefined)?.join('\n');
+      const msg = logs
+        ? (logs.includes('insufficient funds') ? 'Insufficient OCT token balance. Get tokens from the Admin → Faucet.'
+          : logs.includes('already in use') ? 'You already have a prediction on this market.'
+          : logs.includes('MarketNotActive') ? 'Market is not active.'
+          : logs.includes('MarketExpired') ? 'Market has expired.'
+          : e?.message || 'Transaction failed.')
+        : e?.message || 'Transaction failed.';
+      setErr(msg);
+      setStatus('error');
+    }
   };
 
   return (
@@ -869,10 +880,36 @@ const ClaimRewardsTab: FC = () => {
 
 // ─── Admin Page ───────────────────────────────────────────────────────────────
 const AdminPage: FC = () => {
-  const { publicKey, signTransaction } = useWallet();
+  const { publicKey, signTransaction, sendTransaction } = useWallet();
   const { connection } = useConnection();
   const [resolving, setResolving] = useState<string | null>(null);
   const [resolved, setResolved] = useState<Record<string, 'YES'|'NO'>>({});
+  const [faucetAddr, setFaucetAddr] = useState('');
+  const [faucetAmt, setFaucetAmt] = useState('1000');
+  const [faucetStatus, setFaucetStatus] = useState<'idle'|'loading'|'ok'|'err'>('idle');
+  const [faucetMsg, setFaucetMsg] = useState('');
+
+  const handleFaucet = async () => {
+    if (!publicKey || !faucetAddr) return;
+    setFaucetStatus('loading'); setFaucetMsg('');
+    try {
+      const { PublicKey: PK, Transaction } = await import('@solana/web3.js');
+      const { getAssociatedTokenAddress, TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction, createMintToInstruction, ASSOCIATED_TOKEN_PROGRAM_ID } = await import('@solana/spl-token');
+      const dest = new PK(faucetAddr.trim());
+      const destATA = await getAssociatedTokenAddress(ORACLE_TOKEN_MINT, dest);
+      const tx = new Transaction();
+      if (!await connection.getAccountInfo(destATA)) {
+        tx.add(createAssociatedTokenAccountInstruction(publicKey, destATA, dest, ORACLE_TOKEN_MINT, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID));
+      }
+      const amtRaw = Math.floor(parseFloat(faucetAmt) * 1_000_000); // 6 decimals
+      tx.add(createMintToInstruction(ORACLE_TOKEN_MINT, destATA, publicKey, amtRaw, [], TOKEN_PROGRAM_ID));
+      const { blockhash } = await connection.getLatestBlockhash();
+      tx.recentBlockhash = blockhash; tx.feePayer = publicKey;
+      const sig = await sendTransaction(tx, connection);
+      await connection.confirmTransaction(sig, 'confirmed');
+      setFaucetStatus('ok'); setFaucetMsg(`✓ Minted ${faucetAmt} OCT to ${faucetAddr.slice(0,8)}…`);
+    } catch(e:any) { setFaucetStatus('err'); setFaucetMsg(e?.message || 'Mint failed.'); }
+  };
 
   const onChainMarkets = MARKETS.filter(m => MARKET_ADDRESSES[String(m.id)]);
 
@@ -914,6 +951,19 @@ const AdminPage: FC = () => {
       <div style={{ fontSize:10, letterSpacing:3, color:'rgba(245,158,11,.7)', textTransform:'uppercase', marginBottom:10 }}>Admin Panel</div>
       <h1 style={{ fontSize:28, fontWeight:700, color:'white', letterSpacing:-.5, marginBottom:8 }}>Market Resolution</h1>
       <p style={{ fontSize:13, color:'rgba(255,255,255,.35)', marginBottom:28 }}>Resolve on-chain markets by selecting the correct outcome.</p>
+
+      {/* Faucet */}
+      <div style={{ background:'rgba(13,13,43,.8)', border:'1px solid rgba(245,158,11,.15)', borderRadius:14, padding:'20px 22px', marginBottom:28 }}>
+        <div style={{ fontSize:12, fontWeight:600, color:'rgba(245,158,11,.8)', letterSpacing:1, textTransform:'uppercase', marginBottom:14 }}>💧 OCT Faucet</div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 120px 140px', gap:10, alignItems:'center' }}>
+          <input value={faucetAddr} onChange={e=>setFaucetAddr(e.target.value)} placeholder="Wallet address to fund" style={{ background:'rgba(255,255,255,.04)', border:'1px solid rgba(255,255,255,.1)', borderRadius:8, padding:'9px 12px', color:'white', fontSize:12, fontFamily:"'Space Grotesk',sans-serif" }} />
+          <input value={faucetAmt} onChange={e=>setFaucetAmt(e.target.value)} placeholder="Amount" type="number" style={{ background:'rgba(255,255,255,.04)', border:'1px solid rgba(255,255,255,.1)', borderRadius:8, padding:'9px 12px', color:'white', fontSize:12, fontFamily:"'Space Grotesk',sans-serif" }} />
+          <button onClick={handleFaucet} disabled={!faucetAddr||faucetStatus==='loading'} style={{ padding:'9px 0', borderRadius:8, border:'1px solid rgba(245,158,11,.3)', background:'rgba(245,158,11,.1)', color:'#f59e0b', fontSize:12, fontWeight:700, cursor: faucetAddr?'pointer':'not-allowed', fontFamily:"'Space Grotesk',sans-serif" }}>
+            {faucetStatus==='loading' ? 'Minting…' : 'Mint OCT'}
+          </button>
+        </div>
+        {faucetMsg && <div style={{ fontSize:11, marginTop:10, color: faucetStatus==='ok'?'#10b981':'#ef4444' }}>{faucetMsg}</div>}
+      </div>
 
       <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
         {onChainMarkets.map(m => {
