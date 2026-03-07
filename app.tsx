@@ -350,13 +350,15 @@ const BetModal: FC<{ market: any; onClose: () => void }> = ({ market, onClose })
   const handleBet = async () => {
     if (!publicKey) { setErr('Connect your wallet first.'); setStatus('error'); return; }
     if (!amount||parseFloat(amount)<=0) { setErr('Enter a valid amount.'); setStatus('error'); return; }
+    const marketAddr = MARKET_ADDRESSES[String(market.id)];
+    if (!marketAddr) { setErr('This market is not yet deployed on-chain.'); setStatus('error'); return; }
     setStatus('loading'); setErr('');
     try {
       const { PublicKey: PK, Transaction, SystemProgram } = await import('@solana/web3.js');
-      const { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } = await import('@solana/spl-token');
+      const { getAssociatedTokenAddress, TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction, ASSOCIATED_TOKEN_PROGRAM_ID } = await import('@solana/spl-token');
       const idl = (await import('./src/oracle_token_idl.json')).default;
       const { Program, AnchorProvider, BN } = anchor;
-      const MARKET_PDA = new PK('CuvChQETTNKYcnDNJwTQccQkQwJpuK8tqv3KWfwB7Jd2');
+      const MARKET_PDA = new PK(marketAddr);
       const provider = new AnchorProvider(connection, { publicKey, signTransaction:async(tx:any)=>tx, signAllTransactions:async(txs:any)=>txs } as any, { commitment:'confirmed' });
       const program = new Program(idl as any, provider);
       const [predPDA] = PK.findProgramAddressSync([Buffer.from('prediction'),publicKey.toBuffer(),MARKET_PDA.toBuffer()],PROGRAM_ID);
@@ -366,6 +368,9 @@ const BetModal: FC<{ market: any; onClose: () => void }> = ({ market, onClose })
       const tx = new Transaction();
       if (!await connection.getAccountInfo(userProfile)) {
         tx.add(await (program.methods as any).createUserProfile().accounts({ userProfile, user:publicKey, systemProgram:SystemProgram.programId }).instruction());
+      }
+      if (!await connection.getAccountInfo(vault)) {
+        tx.add(createAssociatedTokenAccountInstruction(publicKey, vault, MARKET_PDA, ORACLE_TOKEN_MINT, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID));
       }
       tx.add(await (program.methods as any).makePrediction(side==='yes'?0:1, new BN(Math.floor(parseFloat(amount)))).accounts({ prediction:predPDA, market:MARKET_PDA, userProfile, user:publicKey, userTokenAccount:userTA, marketVault:vault, tokenProgram:TOKEN_PROGRAM_ID, systemProgram:SystemProgram.programId }).instruction());
       const { blockhash } = await connection.getLatestBlockhash();
