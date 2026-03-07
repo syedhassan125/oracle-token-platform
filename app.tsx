@@ -1190,7 +1190,8 @@ const Navbar: FC<{ page:Page; setPage:(p:Page)=>void; octBalance:number; connect
       </div>
     </div>
   </header>
-);
+  );
+};
 
 // ─── Footer ───────────────────────────────────────────────────────────────────
 const Footer: FC = () => (
