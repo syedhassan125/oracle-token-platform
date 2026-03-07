@@ -354,7 +354,7 @@ const BetModal: FC<{ market: any; onClose: () => void }> = ({ market, onClose })
     try {
       const { PublicKey: PK, Transaction, SystemProgram } = await import('@solana/web3.js');
       const { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } = await import('@solana/spl-token');
-      const idl = (await import('./target/idl/oracle_token.json')).default;
+      const idl = (await import('./src/oracle_token_idl.json')).default;
       const { Program, AnchorProvider, BN } = anchor;
       const MARKET_PDA = new PK('CuvChQETTNKYcnDNJwTQccQkQwJpuK8tqv3KWfwB7Jd2');
       const provider = new AnchorProvider(connection, { publicKey, signTransaction:async(tx:any)=>tx, signAllTransactions:async(txs:any)=>txs } as any, { commitment:'confirmed' });
@@ -810,7 +810,7 @@ const ClaimRewardsTab: FC = () => {
       const { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } = await import('@solana/spl-token');
       const { Program, AnchorProvider } = anchor;
       const marketPDA = new PublicKey(MARKET_ADDRESSES[pred.marketId]);
-      const idl = (await import('./target/idl/oracle_token.json')).default;
+      const idl = (await import('./src/oracle_token_idl.json')).default;
       const provider = new AnchorProvider(connection, { publicKey, signTransaction: async (tx: any) => tx, signAllTransactions: async (txs: any) => txs } as any, { commitment: 'confirmed' });
       const program = new Program(idl as any, provider);
       const [predictionPDA] = PublicKey.findProgramAddressSync([Buffer.from('prediction'), publicKey.toBuffer(), marketPDA.toBuffer()], PROGRAM_ID);
@@ -1199,7 +1199,7 @@ const AdminPage: FC = () => {
       const { PublicKey, Transaction } = await import('@solana/web3.js');
       const { Program, AnchorProvider } = anchor;
       const marketPDA = new PublicKey(MARKET_ADDRESSES[marketId]);
-      const idl = (await import('./target/idl/oracle_token.json')).default;
+      const idl = (await import('./src/oracle_token_idl.json')).default;
       const provider = new AnchorProvider(connection, { publicKey, signTransaction: async (tx: any) => tx, signAllTransactions: async (txs: any) => txs } as any, { commitment: 'confirmed' });
       const program = new Program(idl as any, provider);
       const [platformStatePDA] = PublicKey.findProgramAddressSync([Buffer.from('platform')], PROGRAM_ID);
