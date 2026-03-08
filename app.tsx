@@ -18,21 +18,19 @@ const CAT_ICONS: Record<string, string> = {
 };
 
 const MARKETS = [
-  { id: 1, question: "Will Ethereum ETF be approved?", category: "Crypto", yesPercent: 78, volume: "$3.2M", volumeNum: 3200000, ends: "220d", participants: 4312, icon: "eth", gradient: "linear-gradient(135deg,#1a1a4e,#2d1b69,#1a0a3e)" },
-  { id: 2, question: "Trump to win 2028 Election?", category: "Politics", yesPercent: 45, volume: "$5.1M", volumeNum: 5100000, ends: "680d", participants: 8901, icon: "vote", gradient: "linear-gradient(135deg,#1a0a0a,#3d0a1e,#1a0a2e)" },
-  { id: 3, question: "BTC to hit $150k by 2026?", category: "Crypto", yesPercent: 61, volume: "$4.8M", volumeNum: 4800000, ends: "290d", participants: 6234, icon: "btc", gradient: "linear-gradient(135deg,#0a1a1a,#0a2d3d,#1a0a3e)" },
-  { id: 4, question: "Will Solana hit $500 in 2026?", category: "Crypto", yesPercent: 68, volume: "$1.2M", volumeNum: 1200000, ends: "220d", participants: 2341, icon: "sol", gradient: "linear-gradient(135deg,#0a1a2e,#1a2d4e,#0a1a3e)" },
-  { id: 5, question: "Is NASA going back to the Moon?", category: "Science", yesPercent: 55, volume: "$890K", volumeNum: 890000, ends: "180d", participants: 1892, icon: "planet", gradient: "linear-gradient(135deg,#0a0a2e,#1a1a4e,#0a1a3e)" },
-  { id: 6,  question: "Will Ethereum hit $10k in 2026?",      category: "Crypto",  yesPercent: 58, volume: "$0", volumeNum: 0, ends: "365d", participants: 0, icon: "eth",    gradient: "linear-gradient(135deg,#0a1a0a,#1a2d1a,#0a1a2e)" },
-  { id: 7,  question: "Will Solana flip Ethereum by TVL?",    category: "Crypto",  yesPercent: 42, volume: "$0", volumeNum: 0, ends: "365d", participants: 0, icon: "sol",    gradient: "linear-gradient(135deg,#1a1a0a,#2d2d0a,#1a0a3e)" },
-  { id: 8,  question: "Will AI replace 10% of jobs by 2027?", category: "AI",      yesPercent: 65, volume: "$0", volumeNum: 0, ends: "365d", participants: 0, icon: "ai",     gradient: "linear-gradient(135deg,#1a0a0a,#3d1a0a,#1a0a3e)" },
-  { id: 9,  question: "Will gold hit $3500 in 2026?",         category: "Finance", yesPercent: 55, volume: "$0", volumeNum: 0, ends: "365d", participants: 0, icon: "finance", gradient: "linear-gradient(135deg,#0a1a1a,#0a2d2d,#0a1a3e)" },
-  { id: 10, question: "Will SpaceX land on Mars by 2030?",    category: "Science", yesPercent: 48, volume: "$0", volumeNum: 0, ends: "365d", participants: 0, icon: "planet",  gradient: "linear-gradient(135deg,#1a1a1a,#2d2d2d,#1a1a3e)" },
-  { id: 11, question: "Dogecoin reaches $1?", category: "Crypto", yesPercent: 19, volume: "$650K", volumeNum: 650000, ends: "365d", participants: 987, icon: "doge", gradient: "linear-gradient(135deg,#1a1a0a,#2d2d1a,#1a1a0a)" },
-  { id: 12, question: "Republicans win Senate?", category: "Politics", yesPercent: 58, volume: "$4.1M", volumeNum: 4100000, ends: "245d", participants: 6789, icon: "vote", gradient: "linear-gradient(135deg,#1a0a1a,#2d1a2d,#0a0a2e)" },
+  { id: 1,  question: "Will BTC reach $100k by end of 2025?",       category: "Crypto",   yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "btc",    gradient: "linear-gradient(135deg,#1a1a4e,#2d1b69,#1a0a3e)" },
+  { id: 2,  question: "Will Solana hit $500 by end of 2025?",        category: "Crypto",   yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "sol",    gradient: "linear-gradient(135deg,#0a1a2e,#1a2d4e,#0a1a3e)" },
+  { id: 3,  question: "Will Bitcoin hit $150k in 2025?",             category: "Crypto",   yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "btc",    gradient: "linear-gradient(135deg,#0a1a1a,#0a2d3d,#1a0a3e)" },
+  { id: 4,  question: "Will Solana flip Ethereum by market cap?",    category: "Crypto",   yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "sol",    gradient: "linear-gradient(135deg,#1a0a0a,#3d0a1e,#1a0a2e)" },
+  { id: 5,  question: "Will the Fed cut rates 3+ times in 2025?",    category: "Finance",  yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "finance", gradient: "linear-gradient(135deg,#0a0a2e,#1a1a4e,#0a1a3e)" },
+  { id: 6,  question: "Will Ethereum hit $10k in 2026?",             category: "Crypto",   yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "eth",    gradient: "linear-gradient(135deg,#0a1a0a,#1a2d1a,#0a1a2e)" },
+  { id: 7,  question: "Will Solana flip Ethereum by TVL?",           category: "Crypto",   yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "sol",    gradient: "linear-gradient(135deg,#1a1a0a,#2d2d0a,#1a0a3e)" },
+  { id: 8,  question: "Will AI replace 10% of jobs by 2027?",        category: "AI",       yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "ai",     gradient: "linear-gradient(135deg,#1a0a0a,#3d1a0a,#1a0a3e)" },
+  { id: 9,  question: "Will gold hit $3500 in 2026?",                category: "Finance",  yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "finance", gradient: "linear-gradient(135deg,#0a1a1a,#0a2d2d,#0a1a3e)" },
+  { id: 10, question: "Will SpaceX land on Mars by 2030?",           category: "Science",  yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "planet",  gradient: "linear-gradient(135deg,#1a1a1a,#2d2d2d,#1a1a3e)" },
 ];
 
-const TRENDING = [MARKETS[0], MARKETS[1], MARKETS[2]];
+const TRENDING = [MARKETS[0], MARKETS[1], MARKETS[2]]; // replaced by enriched.slice(0,3) in MarketsPage
 
 const LEADERBOARD_DATA = [
   { rank: 1, username: "CryptoKing", avatar: "👑", tokens: 12540, winRate: 84, predictions: 287, tier: "Oracle", focus: "Crypto" },
@@ -94,7 +92,7 @@ const PYTH_FEEDS: Record<string, { id: string; label: string; target?: number }>
 
 // Market icon -> pyth feed key
 const MARKET_PYTH_KEY: Record<number, string> = {
-  1: 'eth', 3: 'btc', 4: 'sol', 6: 'eth', 7: 'sol', 9: 'gold',
+  1: 'btc', 2: 'sol', 3: 'btc', 4: 'sol', 6: 'eth', 7: 'sol', 9: 'gold',
 };
 
 function usePythPrices() {
@@ -724,7 +722,7 @@ const MarketsPage: FC<{ connected: boolean }> = ({ connected }) => {
   const { connection } = useConnection();
   const [cat, setCat] = useState('All');
   const [tick, setTick] = useState(0);
-  const [liveData, setLiveData] = useState<Record<string,{ yesPercent:number; volume:string; totalVolume:number; resolutionTimestamp:number }>>({});
+  const [liveData, setLiveData] = useState<Record<string,{ yesPercent:number; volume:string; totalVolume:number; resolutionTimestamp:number; title:string }>>({});
   const pythPrices = usePythPrices();
 
   useEffect(()=>{ const i = setInterval(()=>setTick(t=>t+1),5000); return ()=>clearInterval(i); },[]);
@@ -744,7 +742,7 @@ const MarketsPage: FC<{ connected: boolean }> = ({ connected }) => {
           const yesPercent = totalVotes > 0 ? Math.round(md.optionVotes[0] / totalVotes * 100) : 50;
           const volOCT = md.totalVolume / 1_000_000;
           const volume = volOCT >= 1000 ? (volOCT/1000).toFixed(1)+'K OCT' : volOCT > 0 ? volOCT.toFixed(2)+' OCT' : '0 OCT';
-          live[id] = { yesPercent, volume, totalVolume: md.totalVolume, resolutionTimestamp: md.resolutionTimestamp };
+          live[id] = { yesPercent, volume, totalVolume: md.totalVolume, resolutionTimestamp: md.resolutionTimestamp, title: md.title };
         });
         setLiveData(live);
       } catch(e) { console.error(e); }
@@ -758,7 +756,7 @@ const MarketsPage: FC<{ connected: boolean }> = ({ connected }) => {
       ? Math.max(0, Math.ceil((live.resolutionTimestamp * 1000 - Date.now()) / 86400000))
       : null;
     const ends = daysLeft !== null ? (daysLeft > 0 ? `${daysLeft}d` : 'Ended') : m.ends;
-    return { ...m, yesPercent: live.yesPercent, volume: live.volume, volumeNum: live.totalVolume, ends };
+    return { ...m, yesPercent: live.yesPercent, volume: live.volume, volumeNum: live.totalVolume, ends, question: live.title || m.question };
   });
 
   const filtered = cat==='All' ? enriched : enriched.filter(m=>m.category===cat);
