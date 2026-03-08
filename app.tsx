@@ -724,7 +724,7 @@ const MarketsPage: FC<{ connected: boolean }> = ({ connected }) => {
   const { connection } = useConnection();
   const [cat, setCat] = useState('All');
   const [tick, setTick] = useState(0);
-  const [liveData, setLiveData] = useState<Record<string,{ yesPercent:number; volume:string; totalVolume:number }>>({});
+  const [liveData, setLiveData] = useState<Record<string,{ yesPercent:number; volume:string; totalVolume:number; resolutionTimestamp:number }>>({});
   const pythPrices = usePythPrices();
 
   useEffect(()=>{ const i = setInterval(()=>setTick(t=>t+1),5000); return ()=>clearInterval(i); },[]);
@@ -744,7 +744,7 @@ const MarketsPage: FC<{ connected: boolean }> = ({ connected }) => {
           const yesPercent = totalVotes > 0 ? Math.round(md.optionVotes[0] / totalVotes * 100) : 50;
           const volOCT = md.totalVolume / 1_000_000;
           const volume = volOCT >= 1000 ? (volOCT/1000).toFixed(1)+'K OCT' : volOCT > 0 ? volOCT.toFixed(2)+' OCT' : '0 OCT';
-          live[id] = { yesPercent, volume, totalVolume: md.totalVolume };
+          live[id] = { yesPercent, volume, totalVolume: md.totalVolume, resolutionTimestamp: md.resolutionTimestamp };
         });
         setLiveData(live);
       } catch(e) { console.error(e); }
@@ -754,7 +754,11 @@ const MarketsPage: FC<{ connected: boolean }> = ({ connected }) => {
   const enriched = MARKETS.map(m => {
     const live = liveData[m.id.toString()];
     if (!live) return m;
-    return { ...m, yesPercent: live.yesPercent, volume: live.volume, volumeNum: live.totalVolume };
+    const daysLeft = live.resolutionTimestamp > 0
+      ? Math.max(0, Math.ceil((live.resolutionTimestamp * 1000 - Date.now()) / 86400000))
+      : null;
+    const ends = daysLeft !== null ? (daysLeft > 0 ? `${daysLeft}d` : 'Ended') : m.ends;
+    return { ...m, yesPercent: live.yesPercent, volume: live.volume, volumeNum: live.totalVolume, ends };
   });
 
   const filtered = cat==='All' ? enriched : enriched.filter(m=>m.category===cat);
