@@ -728,15 +728,14 @@ const MarketsPage: FC<{ connected: boolean }> = ({ connected }) => {
   useEffect(()=>{ const i = setInterval(()=>setTick(t=>t+1),5000); return ()=>clearInterval(i); },[]);
 
   useEffect(() => {
-    (async () => {
+    const fetchMarkets = async () => {
       try {
         const { PublicKey } = await import('@solana/web3.js');
         const entries = Object.entries(MARKET_ADDRESSES).map(([id, addr]) => ({ id, pda: new PublicKey(addr) }));
         const infos = await connection.getMultipleAccountsInfo(entries.map(e => e.pda));
-        const live: Record<string,{ yesPercent:number; volume:string; totalVolume:number }> = {};
+        const live: Record<string,{ yesPercent:number; volume:string; totalVolume:number; resolutionTimestamp:number; title:string }> = {};
         entries.forEach(({ id }, i) => {
-          const info = infos[i];
-          if (!info) return;
+          const info = infos[i]; if (!info) return;
           const md = parseFullMarket(info.data as Uint8Array);
           const totalVotes = md.optionVotes.reduce((a,b)=>a+b,0);
           const yesPercent = totalVotes > 0 ? Math.round(md.optionVotes[0] / totalVotes * 100) : 50;
@@ -746,7 +745,10 @@ const MarketsPage: FC<{ connected: boolean }> = ({ connected }) => {
         });
         setLiveData(live);
       } catch(e) { console.error(e); }
-    })();
+    };
+    fetchMarkets();
+    const interval = setInterval(fetchMarkets, 30000);
+    return () => clearInterval(interval);
   }, [connection]);
 
   const enriched = MARKETS.map(m => {
@@ -1340,24 +1342,69 @@ const ActivityPage: FC<{ onBalanceRefresh: () => void }> = ({ onBalanceRefresh }
 };
 
 // ─── Analytics ────────────────────────────────────────────────────────────────
+const CAT_NAMES: Record<number,string> = { 0:'Sports', 1:'Politics', 2:'Crypto', 3:'Entertainment', 4:'Finance', 5:'Science', 6:'AI' };
+const CAT_COLORS: Record<string,string> = { Crypto:'#7c3aed', Politics:'#4f46e5', AI:'#06b6d4', Finance:'#f59e0b', Science:'#10b981', Sports:'#ef4444', Entertainment:'#ec4899' };
+
 const AnalyticsPage: FC = () => {
-  const pnlData = [
-    { month:'Oct', val: 120 }, { month:'Nov', val: 340 }, { month:'Dec', val: 180 },
-    { month:'Jan', val: 520 }, { month:'Feb', val: 390 }, { month:'Mar', val: 710 },
-  ];
-  const categoryData = [
-    { cat:'Crypto', wins:8, total:11 }, { cat:'Politics', wins:3, total:7 },
-    { cat:'AI', wins:5, total:6 }, { cat:'Sports', wins:2, total:5 }, { cat:'Finance', wins:4, total:5 },
-  ];
-  const volumeData = [
-    { label:'Crypto', pct:42, color:'#7c3aed' }, { label:'Politics', pct:23, color:'#4f46e5' },
-    { label:'AI', pct:18, color:'#06b6d4' }, { label:'Sports', pct:10, color:'#10b981' },
-    { label:'Finance', pct:7, color:'#f59e0b' },
-  ];
-  const maxPnl = Math.max(...pnlData.map(d=>d.val));
-  const totalWins = categoryData.reduce((s,d)=>s+d.wins,0);
-  const totalBets = categoryData.reduce((s,d)=>s+d.total,0);
-  const totalPnl = pnlData.reduce((s,d)=>s+d.val,0);
+  const { publicKey } = useWallet();
+  const { connection } = useConnection();
+  const [preds, setPreds] = useState<ActivityPred[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!publicKey) { setPreds([]); return; }
+    setLoading(true);
+    (async () => {
+      try {
+        const { PublicKey } = await import('@solana/web3.js');
+        const entries = Object.keys(MARKET_ADDRESSES).map(id => {
+          const mPDA = new PublicKey(MARKET_ADDRESSES[id]);
+          const [predPDA] = PublicKey.findProgramAddressSync([Buffer.from('prediction'), publicKey.toBuffer(), mPDA.toBuffer()], PROGRAM_ID);
+          return { id, mPDA, predPDA };
+        });
+        const predInfos = await connection.getMultipleAccountsInfo(entries.map(e => e.predPDA));
+        const found = entries.map((e,i) => ({ ...e, predInfo: predInfos[i] })).filter(e => e.predInfo !== null);
+        if (!found.length) { setPreds([]); setLoading(false); return; }
+        const marketInfos = await connection.getMultipleAccountsInfo(found.map(e => e.mPDA));
+        const result: ActivityPred[] = [];
+        for (let i = 0; i < found.length; i++) {
+          const { id, predPDA, predInfo } = found[i];
+          const pred = parsePrediction(predInfo!.data as Uint8Array); if (!pred) continue;
+          const md = marketInfos[i] ? parseFullMarket(marketInfos[i]!.data as Uint8Array) : { resolved:false, correctOptionIndex:null, optionVotes:[0,0], totalVolume:0, resolutionTimestamp:0, title:'' };
+          const marketTitle = md.title || MARKETS.find(m=>m.id.toString()===id)?.question || `Market ${id}`;
+          const won = md.resolved && md.correctOptionIndex !== null ? pred.optionIndex === md.correctOptionIndex : null;
+          result.push({ key:id, marketId:id, marketTitle, optionIndex:pred.optionIndex, amount:pred.amount, claimed:pred.claimed, predPDAStr:predPDA.toBase58(), marketResolved:md.resolved, correctOptionIndex:md.correctOptionIndex, won, optionVotes:md.optionVotes, totalVolume:md.totalVolume, resolutionTimestamp:md.resolutionTimestamp });
+        }
+        setPreds(result);
+      } catch(e) { console.error(e); }
+      finally { setLoading(false); }
+    })();
+  }, [publicKey, connection]);
+
+  const resolved = preds.filter(p => p.marketResolved);
+  const won = resolved.filter(p => p.won === true);
+  const totalPnl = resolved.reduce((s,p) => {
+    if (p.won) { const tv=p.optionVotes.reduce((a,b)=>a+b,0); return s + (tv>0?(p.amount*p.totalVolume/p.optionVotes[p.optionIndex]-p.amount):0)/1_000_000; }
+    return s - p.amount/1_000_000;
+  }, 0);
+  const winRate = resolved.length > 0 ? Math.round(won.length/resolved.length*100) : 0;
+
+  // Category breakdown from market accounts
+  const catMap: Record<string,{wins:number;total:number}> = {};
+  preds.forEach(p => {
+    const mkt = MARKETS.find(m=>m.id.toString()===p.marketId);
+    const cat = mkt?.category || 'Other';
+    if (!catMap[cat]) catMap[cat] = { wins:0, total:0 };
+    catMap[cat].total++;
+    if (p.won === true) catMap[cat].wins++;
+  });
+  const categoryData = Object.entries(catMap).map(([cat,d]) => ({ cat, ...d }));
+  const total = preds.length;
+  const volumeData = categoryData.map((d,i) => ({ label:d.cat, pct:total>0?Math.round(d.total/total*100):0, color:CAT_COLORS[d.cat]||'#7c3aed' })).filter(d=>d.pct>0);
+
+  // Prediction bars — show each prediction as a bar (staked amount)
+  const barData = preds.map(p => ({ label: `M${p.marketId}`, val: p.amount/1_000_000, won: p.won }));
+  const maxBar = Math.max(...barData.map(d=>d.val), 1);
 
   const donutR = 60, donutCx = 80, donutCy = 80, donutStroke = 20;
   const circumference = 2 * Math.PI * donutR;
@@ -1365,12 +1412,18 @@ const AnalyticsPage: FC = () => {
   const donutSlices = volumeData.map(d => {
     const len = (d.pct / 100) * circumference;
     const slice = { ...d, dashArray: `${len} ${circumference - len}`, dashOffset: -offset };
-    offset += len;
-    return slice;
+    offset += len; return slice;
   });
+  const topCat = volumeData.sort((a,b)=>b.pct-a.pct)[0];
 
   const card = (children: React.ReactNode, extraStyle?: React.CSSProperties) => (
     <div style={{ background:'rgba(13,13,43,.8)', border:'1px solid rgba(139,92,246,.15)', borderRadius:14, padding:'22px 24px', ...extraStyle }}>{children}</div>
+  );
+
+  if (!publicKey) return (
+    <div style={{ maxWidth:1200, margin:'0 auto', padding:'32px 28px', fontFamily:"'Space Grotesk',sans-serif", textAlign:'center', color:'rgba(255,255,255,.3)', paddingTop:80 }}>
+      Connect your wallet to see your analytics.
+    </div>
   );
 
   return (
@@ -1382,10 +1435,10 @@ const AnalyticsPage: FC = () => {
 
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:24 }}>
         {[
-          { l:'Total P&L', v:'+'+totalPnl+' OCT', c:'#10b981' },
-          { l:'Win Rate', v:((totalWins/totalBets)*100).toFixed(0)+'%', c:'#7c3aed' },
-          { l:'Total Bets', v:String(totalBets), c:'white' },
-          { l:'Avg ROI', v:'+34.2%', c:'#06b6d4' },
+          { l:'Total P&L', v: loading?'…': resolved.length>0?(totalPnl>=0?'+':'')+totalPnl.toFixed(2)+' OCT':'—', c: totalPnl>=0?'#10b981':'#ef4444' },
+          { l:'Win Rate', v: loading?'…': resolved.length>0?winRate+'%':'—', c:'#7c3aed' },
+          { l:'Total Bets', v: loading?'…':String(preds.length), c:'white' },
+          { l:'Resolved', v: loading?'…':String(resolved.length), c:'#06b6d4' },
         ].map((s,i)=>(
           <div key={i} style={{ background:'rgba(13,13,43,.8)', border:'1px solid rgba(139,92,246,.15)', borderRadius:14, padding:'22px 24px' }}>
             <div style={{ fontSize:10, color:'rgba(255,255,255,.3)', letterSpacing:2, textTransform:'uppercase', marginBottom:8 }}>{s.l}</div>
@@ -1397,22 +1450,25 @@ const AnalyticsPage: FC = () => {
       <div style={{ display:'grid', gridTemplateColumns:'1fr 320px', gap:16, marginBottom:16 }}>
         {card(
           <>
-            <div style={{ fontSize:13, fontWeight:600, color:'rgba(255,255,255,.6)', marginBottom:20 }}>P&amp;L Over Time (OCT)</div>
+            <div style={{ fontSize:13, fontWeight:600, color:'rgba(255,255,255,.6)', marginBottom:20 }}>Staked per Market (OCT)</div>
+            {loading ? <div style={{ color:'rgba(255,255,255,.2)', fontSize:13 }}>Loading…</div> :
+            preds.length === 0 ? <div style={{ color:'rgba(255,255,255,.2)', fontSize:13 }}>No predictions yet.</div> : (
             <div style={{ display:'flex', alignItems:'flex-end', gap:10, height:160 }}>
-              {pnlData.map((d,i)=>(
+              {barData.map((d,i)=>(
                 <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
-                  <div style={{ fontSize:10, color:'rgba(255,255,255,.35)', marginBottom:2 }}>+{d.val}</div>
-                  <div style={{ width:'100%', height:(d.val/maxPnl)*130+'px', borderRadius:'4px 4px 0 0', background:'linear-gradient(180deg,#7c3aed,rgba(124,58,237,.25))', boxShadow:'0 0 12px rgba(124,58,237,.3)' }} />
-                  <div style={{ fontSize:10, color:'rgba(255,255,255,.25)', paddingTop:4 }}>{d.month}</div>
+                  <div style={{ fontSize:9, color:'rgba(255,255,255,.35)', marginBottom:2 }}>{d.val.toFixed(1)}</div>
+                  <div style={{ width:'100%', height:(d.val/maxBar)*130+'px', borderRadius:'4px 4px 0 0', background: d.won===true?'linear-gradient(180deg,#10b981,rgba(16,185,129,.25))':d.won===false?'linear-gradient(180deg,#ef4444,rgba(239,68,68,.25))':'linear-gradient(180deg,#7c3aed,rgba(124,58,237,.25))', boxShadow:'0 0 12px rgba(124,58,237,.3)' }} />
+                  <div style={{ fontSize:9, color:'rgba(255,255,255,.25)', paddingTop:4 }}>{d.label}</div>
                 </div>
               ))}
-            </div>
+            </div>)}
           </>
         )}
 
         {card(
           <>
-            <div style={{ fontSize:13, fontWeight:600, color:'rgba(255,255,255,.6)', marginBottom:16 }}>Volume by Category</div>
+            <div style={{ fontSize:13, fontWeight:600, color:'rgba(255,255,255,.6)', marginBottom:16 }}>Bets by Category</div>
+            {loading || volumeData.length === 0 ? <div style={{ color:'rgba(255,255,255,.2)', fontSize:13 }}>No data yet.</div> : (
             <div style={{ display:'flex', alignItems:'center', gap:20 }}>
               <svg width={160} height={160} style={{ flexShrink:0 }}>
                 <circle cx={donutCx} cy={donutCy} r={donutR} fill="none" stroke="rgba(255,255,255,.04)" strokeWidth={donutStroke} />
@@ -1422,8 +1478,8 @@ const AnalyticsPage: FC = () => {
                     strokeDasharray={s.dashArray} strokeDashoffset={s.dashOffset}
                     style={{ transform:'rotate(-90deg)', transformOrigin:`${donutCx}px ${donutCy}px` }} />
                 ))}
-                <text x={donutCx} y={donutCy-6} textAnchor="middle" fill="white" fontSize={18} fontWeight={700}>42%</text>
-                <text x={donutCx} y={donutCy+12} textAnchor="middle" fill="rgba(255,255,255,.35)" fontSize={9}>Crypto</text>
+                <text x={donutCx} y={donutCy-6} textAnchor="middle" fill="white" fontSize={18} fontWeight={700}>{topCat?.pct||0}%</text>
+                <text x={donutCx} y={donutCy+12} textAnchor="middle" fill="rgba(255,255,255,.35)" fontSize={9}>{topCat?.label||''}</text>
               </svg>
               <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                 {volumeData.map((d,i)=>(
@@ -1434,7 +1490,7 @@ const AnalyticsPage: FC = () => {
                   </div>
                 ))}
               </div>
-            </div>
+            </div>)}
           </>
         )}
       </div>
@@ -1442,21 +1498,22 @@ const AnalyticsPage: FC = () => {
       {card(
         <>
           <div style={{ fontSize:13, fontWeight:600, color:'rgba(255,255,255,.6)', marginBottom:20 }}>Win Rate by Category</div>
+          {loading || categoryData.length === 0 ? <div style={{ color:'rgba(255,255,255,.2)', fontSize:13 }}>No resolved predictions yet.</div> : (
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             {categoryData.map((d,i)=>{
-              const rate = (d.wins/d.total)*100;
+              const rate = d.total>0?(d.wins/d.total)*100:0;
               return (
                 <div key={i} style={{ display:'grid', gridTemplateColumns:'90px 1fr 70px 60px', alignItems:'center', gap:14 }}>
                   <div style={{ fontSize:13, color:'rgba(255,255,255,.7)', fontWeight:500 }}>{d.cat}</div>
                   <div style={{ height:6, background:'rgba(255,255,255,.06)', borderRadius:3, overflow:'hidden' }}>
-                    <div style={{ height:'100%', width:rate+'%', borderRadius:3, background:'linear-gradient(90deg,#7c3aed,#06b6d4)', boxShadow:'0 0 8px rgba(124,58,237,.4)' }} />
+                    <div style={{ height:'100%', width:rate+'%', borderRadius:3, background:'linear-gradient(90deg,#7c3aed,#06b6d4)', boxShadow:'0 0 8px rgba(124,58,237,.4)', transition:'width .6s ease' }} />
                   </div>
-                  <div style={{ fontSize:12, color:'rgba(255,255,255,.35)', textAlign:'right' }}>{d.wins}/{d.total}</div>
-                  <div style={{ fontSize:13, fontWeight:700, color:rate>=60?'#10b981':rate>=40?'#f59e0b':'#ef4444', textAlign:'right' }}>{rate.toFixed(0)}%</div>
+                  <div style={{ fontSize:12, color:'rgba(255,255,255,.35)', textAlign:'right' as const }}>{d.wins}/{d.total}</div>
+                  <div style={{ fontSize:13, fontWeight:700, color:rate>=60?'#10b981':rate>=40?'#f59e0b':'#ef4444', textAlign:'right' as const }}>{rate.toFixed(0)}%</div>
                 </div>
               );
             })}
-          </div>
+          </div>)}
         </>
       )}
     </div>
@@ -1552,6 +1609,26 @@ const AdminPage: FC = () => {
   const [resolveStatus, setResolveStatus] = useState<Record<string, 'idle'|'loading'|'resolved'|'error'>>({});
   const [resolveTx, setResolveTx] = useState<Record<string, string>>({});
   const [resolvedOption, setResolvedOption] = useState<Record<string, number>>({});
+  const [adminMarketData, setAdminMarketData] = useState<Record<string,{ volume:string; status:number; correctOption:number|null }>>({});
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { PublicKey } = await import('@solana/web3.js');
+        const entries = Object.entries(MARKET_ADDRESSES).map(([id, addr]) => ({ id, pda: new PublicKey(addr) }));
+        const infos = await connection.getMultipleAccountsInfo(entries.map(e => e.pda));
+        const data: Record<string,{ volume:string; status:number; correctOption:number|null }> = {};
+        entries.forEach(({ id }, i) => {
+          const info = infos[i]; if (!info) return;
+          const md = parseFullMarket(info.data as Uint8Array);
+          const volOCT = md.totalVolume / 1_000_000;
+          const volume = volOCT >= 1000 ? (volOCT/1000).toFixed(1)+'K OCT' : volOCT > 0 ? volOCT.toFixed(2)+' OCT' : '0 OCT';
+          data[id] = { volume, status: md.resolved ? 2 : 0, correctOption: md.correctOptionIndex };
+        });
+        setAdminMarketData(data);
+      } catch(e) { console.error(e); }
+    })();
+  }, [connection]);
 
   const handleResolve = async (marketId: string, optionIndex: number) => {
     if (!publicKey) return;
@@ -1621,15 +1698,20 @@ const AdminPage: FC = () => {
                   )}
                 </div>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)' }}>{market.category}</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)' }}>{market.volume}</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)' }}>{adminMarketData[market.id.toString()]?.volume ?? '…'}</div>
                 <div>
-                  {isResolved ? (
-                    <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 5, background: 'rgba(16,185,129,.12)', color: '#10b981', fontWeight: 600 }}>
-                      {winOption === 0 ? 'YES' : 'NO'} ✓
-                    </span>
-                  ) : (
-                    <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 5, background: 'rgba(245,158,11,.1)', color: 'rgba(245,158,11,.8)', fontWeight: 600 }}>Active</span>
-                  )}
+                  {(() => {
+                    const onChain = adminMarketData[market.id.toString()];
+                    const resolved = isResolved || onChain?.status === 2;
+                    const opt = isResolved ? winOption : onChain?.correctOption;
+                    return resolved ? (
+                      <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 5, background: 'rgba(16,185,129,.12)', color: '#10b981', fontWeight: 600 }}>
+                        {opt === 0 ? 'YES' : opt === 1 ? 'NO' : '?'} ✓
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 5, background: 'rgba(245,158,11,.1)', color: 'rgba(245,158,11,.8)', fontWeight: 600 }}>Active</span>
+                    );
+                  })()}
                 </div>
                 <div>
                   {isResolved ? (
