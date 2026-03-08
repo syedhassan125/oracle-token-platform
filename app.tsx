@@ -823,8 +823,9 @@ const MarketsPage: FC<{ connected: boolean; globalLiveData: Record<string,{ yesP
   });
 
   const filtered = cat==='All' ? enriched : enriched.filter(m=>m.category===cat);
-  const topTraders = LEADERBOARD_DATA.slice(0,3);
-  const actFeed = ACTIVITY_FEED.slice(0, tick%2===0?ACTIVITY_FEED.length:ACTIVITY_FEED.length);
+  const { entries: leaderEntries } = useLeaderboardData();
+  const actFeed = useRecentActivity();
+  const topTraders = leaderEntries.slice(0, 3);
 
   return (
     <div style={{ maxWidth:1240, margin:'0 auto', padding:'28px 28px', fontFamily:"'Space Grotesk',sans-serif" }}>
@@ -884,12 +885,12 @@ const MarketsPage: FC<{ connected: boolean; globalLiveData: Record<string,{ yesP
         {/* Top Traders */}
         <div style={{ background:'rgba(13,13,43,.8)', border:'1px solid rgba(139,92,246,.18)', borderRadius:14, padding:18 }}>
           <div style={{ fontSize:13, fontWeight:700, color:'white', marginBottom:14 }}>🏆 Top Traders</div>
+          {topTraders.length === 0 && <div style={{ fontSize:12, color:'rgba(255,255,255,.3)', textAlign:'center', padding:'12px 0' }}>Loading…</div>}
           {topTraders.map((u,i)=>(
             <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 0', borderBottom: i<2?'1px solid rgba(255,255,255,.05)':'none' }}>
               <div style={{ fontSize:13, color: i===0?'#f59e0b':i===1?'rgba(200,200,200,.7)':'rgba(180,120,60,.8)', fontWeight:700, minWidth:20 }}>{i+1}.</div>
-              <span style={{ fontSize:18 }}>{u.avatar}</span>
-              <span style={{ fontSize:13, color:'rgba(255,255,255,.8)', flex:1 }}>{u.username}</span>
-              <span style={{ fontSize:12, color:'rgba(139,92,246,.9)', fontWeight:600 }}>{u.tokens.toLocaleString()} pts</span>
+              <span style={{ fontSize:13, color:'rgba(255,255,255,.8)', flex:1, fontFamily:'monospace' }}>{shortWallet(u.pubkey)}</span>
+              <span style={{ fontSize:12, color:'rgba(139,92,246,.9)', fontWeight:600 }}>{u.totalVolume.toFixed(1)} OCT</span>
             </div>
           ))}
         </div>
@@ -912,13 +913,14 @@ const MarketsPage: FC<{ connected: boolean; globalLiveData: Record<string,{ yesP
             Activity Feed
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+            {actFeed.length === 0 && <div style={{ fontSize:12, color:'rgba(255,255,255,.3)', textAlign:'center', padding:'12px 0' }}>Loading…</div>}
             {actFeed.map((a,i)=>(
               <div key={i} style={{ padding:'9px 0', borderBottom: i<actFeed.length-1?'1px solid rgba(255,255,255,.05)':'none', animation:'slideIn .3s ease' }}>
                 <div style={{ fontSize:12, color:'rgba(255,255,255,.65)', lineHeight:1.5 }}>
-                  <span style={{ color:'white', fontWeight:600 }}>{a.user}</span>
-                  {' '}{a.action}{' '}
-                  {a.amount && <span style={{ color:a.color, fontWeight:600 }}>{a.amount}</span>}
-                  {a.side && <span style={{ color:a.color }}>{' '}&ldquo;{a.side}&rdquo;</span>}
+                  <span style={{ color:'white', fontWeight:600, fontFamily:'monospace' }}>{a.wallet}</span>
+                  {' bet '}
+                  <span style={{ color:a.color, fontWeight:600 }}>{a.amount}</span>
+                  <span style={{ color:a.color }}>{' '}{a.side}</span>
                   {' on '}<span style={{ color:'rgba(139,92,246,.8)' }}>{a.market}</span>
                 </div>
                 <div style={{ fontSize:10, color:'rgba(255,255,255,.25)', marginTop:2 }}>{a.time}</div>
@@ -931,14 +933,112 @@ const MarketsPage: FC<{ connected: boolean; globalLiveData: Record<string,{ yesP
   );
 };
 
+// ─── Shared helpers ────────────────────────────────────────────────────────────
+function timeAgo(ts: number): string {
+  const diff = Math.floor(Date.now()/1000) - ts;
+  if (diff < 60) return diff+'s ago';
+  if (diff < 3600) return Math.floor(diff/60)+'m ago';
+  if (diff < 86400) return Math.floor(diff/3600)+'h ago';
+  return Math.floor(diff/86400)+'d ago';
+}
+
+function shortWallet(pk: string): string {
+  return pk.slice(0,4)+'...'+pk.slice(-4);
+}
+
+type LeaderEntry = { pubkey: string; totalTokens: number; totalPredictions: number; correctPredictions: number; totalVolume: number };
+
+function useLeaderboardData() {
+  const { connection } = useConnection();
+  const [entries, setEntries] = useState<LeaderEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    (async () => {
+      try {
+        const accounts = await connection.getProgramAccounts(PROGRAM_ID, {
+          filters: [{ dataSize: 225 }, { memcmp: { offset: 0, bytes: '6NrstEfxKVB' } }],
+        });
+        const parsed: LeaderEntry[] = accounts.map(({ account }) => {
+          const d = account.data as Buffer;
+          const view = new DataView(d.buffer, d.byteOffset, d.byteLength);
+          const pubkey = new PublicKey(d.slice(8, 40)).toBase58();
+          const totalTokens = view.getUint32(40, true) + view.getUint32(44, true) * 0x100000000;
+          const totalPredictions = view.getUint32(48, true) + view.getUint32(52, true) * 0x100000000;
+          const correctPredictions = view.getUint32(56, true) + view.getUint32(60, true) * 0x100000000;
+          const totalVolume = (view.getUint32(64, true) + view.getUint32(68, true) * 0x100000000) / 1_000_000;
+          return { pubkey, totalTokens, totalPredictions, correctPredictions, totalVolume };
+        }).filter(e => e.totalPredictions > 0 || e.totalVolume > 0);
+        parsed.sort((a, b) => b.totalVolume - a.totalVolume);
+        setEntries(parsed);
+      } catch(e) { console.error('leaderboard fetch:', e); }
+      finally { setLoading(false); }
+    })();
+  }, [connection]);
+  return { entries, loading };
+}
+
+type ActivityItem = { wallet: string; side: string; amount: string; market: string; time: string; color: string };
+
+function useRecentActivity() {
+  const { connection } = useConnection();
+  const [feed, setFeed] = useState<ActivityItem[]>([]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const PRED_DISC = [206, 137, 238, 92, 59, 16, 13, 227];
+        const MARKET_ADDR_REVERSE = Object.fromEntries(Object.entries(MARKET_ADDRESSES).map(([id, addr]) => [addr, id]));
+        const sigs = await connection.getSignaturesForAddress(PROGRAM_ID, { limit: 30 });
+        const txs = await Promise.all(
+          sigs.slice(0, 15).map(s => connection.getTransaction(s.signature, { maxSupportedTransactionVersion: 0 }).catch(() => null))
+        );
+        const results: ActivityItem[] = [];
+        for (const tx of txs) {
+          if (!tx?.transaction || !tx.blockTime) continue;
+          const msg = tx.transaction.message as any;
+          const ixList = msg.compiledInstructions || msg.instructions || [];
+          const keys = msg.staticAccountKeys || msg.accountKeys || [];
+          for (const ix of ixList) {
+            const rawData: Uint8Array = ix.data instanceof Uint8Array ? ix.data : Buffer.from(ix.data, 'base64');
+            if (rawData.length < 17) continue;
+            const isPredict = PRED_DISC.every((b, i) => rawData[i] === b);
+            if (!isPredict) continue;
+            const view = new DataView(rawData.buffer, rawData.byteOffset, rawData.byteLength);
+            const optionIndex = rawData[8];
+            const amountLo = view.getUint32(9, true);
+            const amountHi = view.getUint32(13, true);
+            const amount = (amountHi * 0x100000000 + amountLo) / 1_000_000;
+            const idxList: number[] = ix.accountKeyIndexes || ix.accounts || [];
+            const marketKey = keys[idxList[1]]?.toBase58?.() || '';
+            const marketId = MARKET_ADDR_REVERSE[marketKey];
+            const mkt = MARKETS.find(m => m.id.toString() === marketId);
+            const walletKey = keys[idxList[3]]?.toBase58?.() || '';
+            if (!walletKey || amount < 0.001) continue;
+            results.push({
+              wallet: shortWallet(walletKey),
+              side: optionIndex === 0 ? 'YES' : 'NO',
+              amount: amount.toFixed(0)+' OCT',
+              market: (mkt?.question || `Market ${marketId || '?'}`).slice(0, 28)+'…',
+              time: timeAgo(tx.blockTime),
+              color: optionIndex === 0 ? '#00d4aa' : '#ff6b6b',
+            });
+          }
+        }
+        if (results.length > 0) setFeed(results.slice(0, 8));
+      } catch(e) { console.error('activity feed:', e); }
+    })();
+  }, [connection]);
+  return feed;
+}
+
 // ─── Leaderboard ──────────────────────────────────────────────────────────────
 const LeaderboardPage: FC<{ octBalance: number }> = ({ octBalance }) => {
-  const [cat, setCat] = useState('All');
-  const data = LEADERBOARD_DATA.map((u,i) => i===7 ? {...u, tokens: octBalance} : u);
-  const rows = cat==='All' ? data : data.filter(u=>u.focus===cat||u.username==='You');
-  const you = data.find(u=>u.username==='You')!;
+  const { publicKey } = useWallet();
+  const { entries, loading } = useLeaderboardData();
   const tierColor = (t:string) => t==='Oracle'?'#f59e0b':t==='Expert'?'#a78bfa':'rgba(96,165,250,.8)';
   const tierBg = (t:string) => t==='Oracle'?'rgba(245,158,11,.12)':t==='Expert'?'rgba(139,92,246,.12)':'rgba(96,165,250,.1)';
+  const getTier = (vol: number) => vol > 500 ? 'Oracle' : vol > 50 ? 'Expert' : 'Novice';
+  const myEntry = publicKey ? entries.find(e => e.pubkey === publicKey.toBase58()) : null;
+  const myRank = myEntry ? entries.indexOf(myEntry) + 1 : null;
 
   return (
     <div style={{ maxWidth:1200, margin:'0 auto', padding:'32px 28px', fontFamily:"'Space Grotesk',sans-serif" }}>
@@ -947,48 +1047,53 @@ const LeaderboardPage: FC<{ octBalance: number }> = ({ octBalance }) => {
         <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', flexWrap:'wrap', gap:16, marginBottom:20 }}>
           <div>
             <h1 style={{ fontSize:28, fontWeight:700, color:'white', letterSpacing:-.5, marginBottom:6 }}>Leaderboard <span style={{ color:'rgba(255,255,255,.3)', fontWeight:300 }}>· top predictors</span></h1>
-            <p style={{ fontSize:13, color:'rgba(255,255,255,.35)' }}>Ranked by Oracle Tokens earned through accurate predictions</p>
+            <p style={{ fontSize:13, color:'rgba(255,255,255,.35)' }}>Ranked by OCT volume staked on-chain · live from Solana devnet</p>
           </div>
-          <div style={{ background:'rgba(255,255,255,.03)', border:'1px solid rgba(139,92,246,.2)', borderRadius:12, padding:'14px 22px', display:'flex', alignItems:'center', gap:20 }}>
-            <div><div style={{ fontSize:9, color:'rgba(255,255,255,.3)', letterSpacing:2, textTransform:'uppercase', marginBottom:4 }}>Your Rank</div><div style={{ fontSize:24, fontWeight:700, color:'white' }}>#{you.rank}</div></div>
-            <div style={{ width:1, height:32, background:'rgba(255,255,255,.08)' }} />
-            {[{l:'Tokens',v:octBalance>0?octBalance.toLocaleString():'—'},{l:'Win Rate',v:you.winRate>0?you.winRate+'%':'—'}].map((s,i)=>(
-              <div key={i}><div style={{ fontSize:9, color:'rgba(255,255,255,.3)', letterSpacing:1.5, textTransform:'uppercase', marginBottom:4 }}>{s.l}</div><div style={{ fontSize:15, fontWeight:600, color:'white' }}>{s.v}</div></div>
-            ))}
-          </div>
-        </div>
-        <div style={{ display:'flex', gap:6 }}>
-          {CATEGORIES.map(c=>(
-            <button key={c} onClick={()=>setCat(c)} className="cat-btn" style={{ padding:'6px 14px', borderRadius:20, border:`1px solid ${cat===c?'rgba(139,92,246,.6)':'rgba(255,255,255,.08)'}`, background: cat===c?'rgba(139,92,246,.15)':'transparent', color: cat===c?'white':'rgba(255,255,255,.4)', fontSize:12, cursor:'pointer', fontFamily:"'Space Grotesk',sans-serif", transition:'all .2s' }}>{c}</button>
-          ))}
+          {myEntry && (
+            <div style={{ background:'rgba(255,255,255,.03)', border:'1px solid rgba(139,92,246,.2)', borderRadius:12, padding:'14px 22px', display:'flex', alignItems:'center', gap:20 }}>
+              <div><div style={{ fontSize:9, color:'rgba(255,255,255,.3)', letterSpacing:2, textTransform:'uppercase', marginBottom:4 }}>Your Rank</div><div style={{ fontSize:24, fontWeight:700, color:'white' }}>#{myRank}</div></div>
+              <div style={{ width:1, height:32, background:'rgba(255,255,255,.08)' }} />
+              {[{l:'Volume',v:myEntry.totalVolume.toFixed(1)+' OCT'},{l:'Predictions',v:String(myEntry.totalPredictions)}].map((s,i)=>(
+                <div key={i}><div style={{ fontSize:9, color:'rgba(255,255,255,.3)', letterSpacing:1.5, textTransform:'uppercase', marginBottom:4 }}>{s.l}</div><div style={{ fontSize:15, fontWeight:600, color:'white' }}>{s.v}</div></div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       <div style={{ background:'rgba(13,13,43,.6)', border:'1px solid rgba(139,92,246,.15)', borderRadius:14, overflow:'hidden' }}>
-        <div style={{ display:'grid', gridTemplateColumns:'60px 1fr 100px 130px 160px 80px 90px', gap:16, padding:'10px 18px', borderBottom:'1px solid rgba(255,255,255,.06)', background:'rgba(255,255,255,.02)' }}>
-          {['Rank','Trader','Tier','Tokens','Win Rate','W/L','Focus'].map((h,i)=>(
+        <div style={{ display:'grid', gridTemplateColumns:'60px 1fr 100px 160px 120px 100px', gap:16, padding:'10px 18px', borderBottom:'1px solid rgba(255,255,255,.06)', background:'rgba(255,255,255,.02)' }}>
+          {['Rank','Wallet','Tier','Volume (OCT)','Predictions','Correct'].map((h,i)=>(
             <div key={i} style={{ fontSize:10, color:'rgba(255,255,255,.25)', letterSpacing:2, textTransform:'uppercase' }}>{h}</div>
           ))}
         </div>
-        {rows.map((u,idx)=>(
-          <div key={u.rank} className="lb-row" style={{ display:'grid', gridTemplateColumns:'60px 1fr 100px 130px 160px 80px 90px', gap:16, padding:'13px 18px', borderBottom: idx<rows.length-1?'1px solid rgba(255,255,255,.04)':'none', alignItems:'center', background: u.username==='You'?'rgba(139,92,246,.06)':'transparent', borderLeft: u.username==='You'?'2px solid rgba(139,92,246,.5)':'2px solid transparent' }}>
-            <div style={{ fontSize:13, fontWeight:700, color: idx===0?'#f59e0b':idx===1?'rgba(200,200,200,.7)':idx===2?'rgba(180,120,60,.8)':'rgba(255,255,255,.3)' }}>
-              {idx<3?['01','02','03'][idx]:'#'+u.rank}
+        {loading ? (
+          <div style={{ padding:32, textAlign:'center', color:'rgba(255,255,255,.25)', fontSize:13 }}>Loading on-chain data…</div>
+        ) : entries.length === 0 ? (
+          <div style={{ padding:32, textAlign:'center', color:'rgba(255,255,255,.25)', fontSize:13 }}>No predictions on-chain yet. Be the first!</div>
+        ) : entries.map((u, idx) => {
+          const isMe = publicKey?.toBase58() === u.pubkey;
+          const tier = getTier(u.totalVolume);
+          const winRate = u.totalPredictions > 0 ? Math.round(u.correctPredictions / u.totalPredictions * 100) : 0;
+          return (
+            <div key={u.pubkey} className="lb-row" style={{ display:'grid', gridTemplateColumns:'60px 1fr 100px 160px 120px 100px', gap:16, padding:'13px 18px', borderBottom: idx<entries.length-1?'1px solid rgba(255,255,255,.04)':'none', alignItems:'center', background: isMe?'rgba(139,92,246,.06)':'transparent', borderLeft: isMe?'2px solid rgba(139,92,246,.5)':'2px solid transparent' }}>
+              <div style={{ fontSize:13, fontWeight:700, color: idx===0?'#f59e0b':idx===1?'rgba(200,200,200,.7)':idx===2?'rgba(180,120,60,.8)':'rgba(255,255,255,.3)' }}>
+                {idx<3?['01','02','03'][idx]:`#${idx+1}`}
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <span style={{ fontSize:16 }}>🔮</span>
+                <span style={{ fontSize:12, fontWeight:500, color: isMe?'rgba(139,92,246,.9)':'rgba(255,255,255,.75)', fontFamily:'monospace' }}>{shortWallet(u.pubkey)}{isMe?' (You)':''}</span>
+              </div>
+              <div style={{ fontSize:10, padding:'3px 9px', borderRadius:5, background:tierBg(tier), color:tierColor(tier), fontWeight:600, display:'inline-block', letterSpacing:.5, textTransform:'uppercase' }}>{tier}</div>
+              <div style={{ fontSize:13, fontWeight:600, color:'#10b981' }}>{u.totalVolume.toFixed(2)}</div>
+              <div style={{ fontSize:12, color:'rgba(255,255,255,.5)' }}>{u.totalPredictions > 0 ? String(u.totalPredictions) : '—'}</div>
+              <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                <span style={{ fontSize:12, color:'rgba(255,255,255,.4)' }}>{u.correctPredictions > 0 ? winRate+'%' : '—'}</span>
+                {winRate > 0 && <div style={{ flex:1, height:3, background:'rgba(255,255,255,.06)', borderRadius:2, overflow:'hidden' }}><div style={{ height:'100%', width:winRate+'%', background:'linear-gradient(90deg,#10b981,rgba(16,185,129,.4))', borderRadius:2 }} /></div>}
+              </div>
             </div>
-            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-              <span style={{ fontSize:18 }}>{u.avatar}</span>
-              <span style={{ fontSize:13, fontWeight:500, color: u.username==='You'?'rgba(139,92,246,.9)':'rgba(255,255,255,.85)' }}>{u.username}</span>
-            </div>
-            <div style={{ fontSize:10, padding:'3px 9px', borderRadius:5, background:tierBg(u.tier), color:tierColor(u.tier), fontWeight:600, display:'inline-block', letterSpacing:.5, textTransform:'uppercase' }}>{u.tier}</div>
-            <div style={{ fontSize:13, fontWeight:600, color:'#10b981' }}>{u.tokens>0?u.tokens.toLocaleString():'—'}</div>
-            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-              <span style={{ fontSize:12, color:'rgba(255,255,255,.5)', minWidth:34 }}>{u.winRate>0?u.winRate+'%':'—'}</span>
-              {u.winRate>0 && <div style={{ flex:1, height:3, background:'rgba(255,255,255,.06)', borderRadius:2, overflow:'hidden' }}><div style={{ height:'100%', width:u.winRate+'%', background:'linear-gradient(90deg,#10b981,rgba(16,185,129,.4))', borderRadius:2 }} /></div>}
-            </div>
-            <div style={{ fontSize:12, color:'rgba(255,255,255,.3)' }}>{u.predictions>0?`${u.wins}/${u.predictions}`:'—'}</div>
-            <div style={{ fontSize:11, color:'rgba(255,255,255,.3)' }}>{u.focus}</div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
