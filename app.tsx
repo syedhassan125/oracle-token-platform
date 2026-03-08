@@ -453,8 +453,21 @@ const BetModal: FC<{ market: any; onClose: () => void }> = ({ market, onClose })
       await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
       setTxSig(sig); setStatus('success');
     } catch (e: any) {
-      const msg = e?.logs?.join?.('\n') || e?.message || 'Transaction failed.';
-      setErr(msg.includes('already in use') ? 'You already have a prediction on this market.' : msg.includes('insufficient') ? 'Insufficient OCT balance.' : e?.message || 'Transaction failed.');
+      const logs: string = (e?.logs || []).join('\n');
+      const msg: string = e?.message || '';
+      let errText = 'Transaction failed. Please try again.';
+      if (logs.includes('already in use') || msg.includes('already in use')) {
+        errText = 'You already have a prediction on this market.';
+      } else if (logs.includes('MarketNotActive') || logs.includes('market_not_active') || logs.includes('0x1771') || logs.includes('Market is not active')) {
+        errText = 'This market is already resolved and no longer accepts predictions.';
+      } else if (logs.includes('insufficient') || msg.includes('insufficient')) {
+        errText = 'Insufficient OCT balance.';
+      } else if (logs.includes('custom program error') || msg.includes('Transaction simulation failed')) {
+        errText = 'Transaction rejected by program. Market may be resolved or you may already have a prediction here.';
+      } else if (msg) {
+        errText = msg;
+      }
+      setErr(errText);
       setStatus('error');
     }
   };
@@ -535,12 +548,14 @@ const MarketCard: FC<{ market: any; featured?: boolean; delay?: number; pythPric
   const [mounted, setMounted] = useState(false);
   const yesColor = market.yesPercent >= 50 ? '#00d4aa' : '#ff6b6b';
   const noColor = market.yesPercent < 50 ? '#00d4aa' : '#ff6b6b';
+  const isResolved = !!market.resolved;
   useEffect(() => { const t = setTimeout(() => setMounted(true), 80 + delay * 60); return () => clearTimeout(t); }, [delay]);
 
   if (featured) return (
     <>
-      <div className="trend-card" style={{ background: market.gradient, border:'1px solid rgba(139,92,246,.25)', borderRadius:14, padding:20, position:'relative', overflow:'hidden', minHeight:160, animation:`fadeUp .4s ease ${delay*0.08}s both` }}>
+      <div className="trend-card" style={{ background: market.gradient, border:`1px solid ${isResolved ? 'rgba(255,255,255,.1)' : 'rgba(139,92,246,.25)'}`, borderRadius:14, padding:20, position:'relative', overflow:'hidden', minHeight:160, animation:`fadeUp .4s ease ${delay*0.08}s both`, opacity: isResolved ? 0.65 : 1 }}>
         <div style={{ position:'absolute', inset:0, background:'radial-gradient(circle at 70% 50%,rgba(139,92,246,.15),transparent 60%)' }} />
+        {isResolved && <div style={{ position:'absolute', top:10, left:10, background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.2)', borderRadius:5, padding:'2px 8px', fontSize:9, letterSpacing:1.5, color:'rgba(255,255,255,.5)', textTransform:'uppercase', fontWeight:600 }}>Resolved</div>}
         <div style={{ position:'relative', zIndex:1 }}>
           <div style={{ marginBottom:10 }}><MarketIcon type={market.icon} size={32} /></div>
           <div style={{ fontSize:15, fontWeight:600, color:'white', marginBottom:12, lineHeight:1.4 }}>{market.question}</div>
@@ -548,7 +563,11 @@ const MarketCard: FC<{ market: any; featured?: boolean; delay?: number; pythPric
             <span style={{ fontSize:13, color:'rgba(255,255,255,.5)' }}>YES</span>
             <span style={{ fontSize:32, fontWeight:700, color:yesColor, letterSpacing:-1 }}>{market.yesPercent}%</span>
           </div>
-          <button onClick={()=>setModal(true)} className="buy-btn" style={{ background:'linear-gradient(135deg,#7c3aed,#4f46e5)', border:'none', borderRadius:8, padding:'9px 20px', color:'white', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:"'Space Grotesk',sans-serif" }}>Trade Now</button>
+          {isResolved ? (
+            <div style={{ background:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.12)', borderRadius:8, padding:'9px 20px', color:'rgba(255,255,255,.4)', fontSize:13, fontWeight:600, display:'inline-block' }}>Market Closed</div>
+          ) : (
+            <button onClick={()=>setModal(true)} className="buy-btn" style={{ background:'linear-gradient(135deg,#7c3aed,#4f46e5)', border:'none', borderRadius:8, padding:'9px 20px', color:'white', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:"'Space Grotesk',sans-serif" }}>Trade Now</button>
+          )}
         </div>
         <div style={{ position:'absolute', bottom:10, right:14, fontSize:10, color:'rgba(255,255,255,.25)', letterSpacing:.5 }}>
           {market.volume} · {market.participants.toLocaleString()} traders
@@ -566,7 +585,7 @@ const MarketCard: FC<{ market: any; featured?: boolean; delay?: number; pythPric
 
   return (
     <>
-      <div className="mkt-card" style={{ background:'rgba(13,13,43,.45)', border:'1px solid rgba(139,92,246,.18)', borderRadius:14, padding:18, position:'relative', overflow:'hidden', animation:`fadeUp .4s ease ${delay*0.06}s both` }}>
+      <div className="mkt-card" style={{ background:'rgba(13,13,43,.45)', border:`1px solid ${isResolved ? 'rgba(255,255,255,.08)' : 'rgba(139,92,246,.18)'}`, borderRadius:14, padding:18, position:'relative', overflow:'hidden', animation:`fadeUp .4s ease ${delay*0.06}s both`, opacity: isResolved ? 0.6 : 1 }}>
         <div style={{ position:'absolute', top:0, left:0, right:0, height:'1px', background:`linear-gradient(90deg,transparent,rgba(139,92,246,.5),transparent)` }} />
         <div style={{ position:'absolute', inset:0, background:'linear-gradient(135deg,rgba(139,92,246,.04),transparent 60%)', pointerEvents:'none' }} />
         <div style={{ marginBottom:10 }}><MarketIcon type={market.icon} size={28} /></div>
@@ -586,13 +605,19 @@ const MarketCard: FC<{ market: any; featured?: boolean; delay?: number; pythPric
 
         <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'rgba(255,255,255,.35)', marginBottom: pythPrice !== undefined ? 8 : 14, alignItems:'center' }}>
           <span style={{ display:'flex', alignItems:'center', gap:5 }}>
-            <span style={{ position:'relative', display:'inline-block', width:6, height:6 }}>
-              <span style={{ position:'absolute', inset:0, borderRadius:'50%', background:'#22c55e', animation:'livePulse 2s ease-out infinite' }} />
-              <span style={{ position:'absolute', inset:0, borderRadius:'50%', background:'#22c55e' }} />
-            </span>
-            {market.volume}
+            {isResolved ? (
+              <span style={{ fontSize:9, letterSpacing:1.5, color:'rgba(255,255,255,.3)', textTransform:'uppercase', fontWeight:600 }}>RESOLVED</span>
+            ) : (
+              <>
+                <span style={{ position:'relative', display:'inline-block', width:6, height:6 }}>
+                  <span style={{ position:'absolute', inset:0, borderRadius:'50%', background:'#22c55e', animation:'livePulse 2s ease-out infinite' }} />
+                  <span style={{ position:'absolute', inset:0, borderRadius:'50%', background:'#22c55e' }} />
+                </span>
+                {market.volume}
+              </>
+            )}
           </span>
-          <span>Ends in {market.ends}</span>
+          <span>{isResolved ? 'Closed' : `Ends in ${market.ends}`}</span>
         </div>
         {pythPrice !== undefined && (
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14, background:'rgba(245,158,11,.06)', border:'1px solid rgba(245,158,11,.15)', borderRadius:7, padding:'5px 10px' }}>
@@ -607,10 +632,14 @@ const MarketCard: FC<{ market: any; featured?: boolean; delay?: number; pythPric
           </div>
         )}
 
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:7 }}>
-          <button onClick={()=>setModal(true)} className="buy-btn" style={{ padding:'8px 0', borderRadius:8, border:'1px solid rgba(0,212,170,.3)', background:'rgba(0,212,170,.1)', color:'#00d4aa', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:"'Space Grotesk',sans-serif" }}>Buy YES</button>
-          <button onClick={()=>setModal(true)} className="buy-btn" style={{ padding:'8px 0', borderRadius:8, border:'1px solid rgba(239,68,68,.3)', background:'rgba(239,68,68,.1)', color:'#ff6b6b', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:"'Space Grotesk',sans-serif" }}>Buy NO</button>
-        </div>
+        {isResolved ? (
+          <div style={{ padding:'8px 0', borderRadius:8, border:'1px solid rgba(255,255,255,.1)', background:'rgba(255,255,255,.04)', color:'rgba(255,255,255,.3)', fontSize:11, fontWeight:600, textAlign:'center', letterSpacing:.5 }}>✓ RESOLVED</div>
+        ) : (
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:7 }}>
+            <button onClick={()=>setModal(true)} className="buy-btn" style={{ padding:'8px 0', borderRadius:8, border:'1px solid rgba(0,212,170,.3)', background:'rgba(0,212,170,.1)', color:'#00d4aa', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:"'Space Grotesk',sans-serif" }}>Buy YES</button>
+            <button onClick={()=>setModal(true)} className="buy-btn" style={{ padding:'8px 0', borderRadius:8, border:'1px solid rgba(239,68,68,.3)', background:'rgba(239,68,68,.1)', color:'#ff6b6b', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:"'Space Grotesk',sans-serif" }}>Buy NO</button>
+          </div>
+        )}
       </div>
       {modal && <BetModal market={market} onClose={()=>setModal(false)} />}
     </>
@@ -718,7 +747,7 @@ const CreateMarketPage: FC = () => {
 };
 
 // ─── Markets Home ─────────────────────────────────────────────────────────────
-const MarketsPage: FC<{ connected: boolean; globalLiveData: Record<string,{ yesPercent:number; volume:string; totalVolume:number; resolutionTimestamp:number; title:string }> }> = ({ connected, globalLiveData }) => {
+const MarketsPage: FC<{ connected: boolean; globalLiveData: Record<string,{ yesPercent:number; volume:string; totalVolume:number; resolutionTimestamp:number; title:string; resolved:boolean }> }> = ({ connected, globalLiveData }) => {
   const [cat, setCat] = useState('All');
   const [tick, setTick] = useState(0);
   const liveData = globalLiveData;
@@ -733,7 +762,7 @@ const MarketsPage: FC<{ connected: boolean; globalLiveData: Record<string,{ yesP
       ? Math.max(0, Math.ceil((live.resolutionTimestamp * 1000 - Date.now()) / 86400000))
       : null;
     const ends = daysLeft !== null ? (daysLeft > 0 ? `${daysLeft}d` : 'Ended') : m.ends;
-    return { ...m, yesPercent: live.yesPercent, volume: live.volume, volumeNum: live.totalVolume, ends, question: live.title || m.question };
+    return { ...m, yesPercent: live.yesPercent, volume: live.volume, volumeNum: live.totalVolume, ends, question: live.title || m.question, resolved: live.resolved };
   });
 
   const filtered = cat==='All' ? enriched : enriched.filter(m=>m.category===cat);
@@ -1717,7 +1746,7 @@ const MainApp: FC = () => {
   const { connection } = useConnection();
   const [page, setPage] = useState<Page>('markets');
   const [octBalance, setOctBalance] = useState(0);
-  const [globalLiveData, setGlobalLiveData] = useState<Record<string,{ yesPercent:number; volume:string; totalVolume:number; resolutionTimestamp:number; title:string }>>({});
+  const [globalLiveData, setGlobalLiveData] = useState<Record<string,{ yesPercent:number; volume:string; totalVolume:number; resolutionTimestamp:number; title:string; resolved:boolean }>>({});
 
   const fetchOctBalance = useCallback(async () => {
     if (!publicKey) { setOctBalance(0); return; }
@@ -1744,7 +1773,7 @@ const MainApp: FC = () => {
           const yesPercent = totalVotes > 0 ? Math.round(md.optionVotes[0] / totalVotes * 100) : 50;
           const volOCT = md.totalVolume / 1_000_000;
           const volume = volOCT >= 1000 ? (volOCT/1000).toFixed(1)+'K OCT' : volOCT > 0 ? volOCT.toFixed(2)+' OCT' : '0 OCT';
-          live[id] = { yesPercent, volume, totalVolume: md.totalVolume, resolutionTimestamp: md.resolutionTimestamp, title: md.title };
+          live[id] = { yesPercent, volume, totalVolume: md.totalVolume, resolutionTimestamp: md.resolutionTimestamp, title: md.title, resolved: md.resolved };
         });
         setGlobalLiveData(live);
       } catch(e) { console.error(e); }
