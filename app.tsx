@@ -718,38 +718,13 @@ const CreateMarketPage: FC = () => {
 };
 
 // ─── Markets Home ─────────────────────────────────────────────────────────────
-const MarketsPage: FC<{ connected: boolean }> = ({ connected }) => {
-  const { connection } = useConnection();
+const MarketsPage: FC<{ connected: boolean; globalLiveData: Record<string,{ yesPercent:number; volume:string; totalVolume:number; resolutionTimestamp:number; title:string }> }> = ({ connected, globalLiveData }) => {
   const [cat, setCat] = useState('All');
   const [tick, setTick] = useState(0);
-  const [liveData, setLiveData] = useState<Record<string,{ yesPercent:number; volume:string; totalVolume:number; resolutionTimestamp:number; title:string }>>({});
+  const liveData = globalLiveData;
   const pythPrices = usePythPrices();
 
   useEffect(()=>{ const i = setInterval(()=>setTick(t=>t+1),5000); return ()=>clearInterval(i); },[]);
-
-  useEffect(() => {
-    const fetchMarkets = async () => {
-      try {
-        const { PublicKey } = await import('@solana/web3.js');
-        const entries = Object.entries(MARKET_ADDRESSES).map(([id, addr]) => ({ id, pda: new PublicKey(addr) }));
-        const infos = await connection.getMultipleAccountsInfo(entries.map(e => e.pda));
-        const live: Record<string,{ yesPercent:number; volume:string; totalVolume:number; resolutionTimestamp:number; title:string }> = {};
-        entries.forEach(({ id }, i) => {
-          const info = infos[i]; if (!info) return;
-          const md = parseFullMarket(info.data as Uint8Array);
-          const totalVotes = md.optionVotes.reduce((a,b)=>a+b,0);
-          const yesPercent = totalVotes > 0 ? Math.round(md.optionVotes[0] / totalVotes * 100) : 50;
-          const volOCT = md.totalVolume / 1_000_000;
-          const volume = volOCT >= 1000 ? (volOCT/1000).toFixed(1)+'K OCT' : volOCT > 0 ? volOCT.toFixed(2)+' OCT' : '0 OCT';
-          live[id] = { yesPercent, volume, totalVolume: md.totalVolume, resolutionTimestamp: md.resolutionTimestamp, title: md.title };
-        });
-        setLiveData(live);
-      } catch(e) { console.error(e); }
-    };
-    fetchMarkets();
-    const interval = setInterval(fetchMarkets, 30000);
-    return () => clearInterval(interval);
-  }, [connection]);
 
   const enriched = MARKETS.map(m => {
     const live = liveData[m.id.toString()];
@@ -1742,6 +1717,7 @@ const MainApp: FC = () => {
   const { connection } = useConnection();
   const [page, setPage] = useState<Page>('markets');
   const [octBalance, setOctBalance] = useState(0);
+  const [globalLiveData, setGlobalLiveData] = useState<Record<string,{ yesPercent:number; volume:string; totalVolume:number; resolutionTimestamp:number; title:string }>>({});
 
   const fetchOctBalance = useCallback(async () => {
     if (!publicKey) { setOctBalance(0); return; }
@@ -1753,6 +1729,31 @@ const MainApp: FC = () => {
     } catch { setOctBalance(0); }
   }, [publicKey, connection]);
 
+  // Global market data fetch — always running regardless of page
+  useEffect(() => {
+    const fetchMarkets = async () => {
+      try {
+        const { PublicKey } = await import('@solana/web3.js');
+        const entries = Object.entries(MARKET_ADDRESSES).map(([id, addr]) => ({ id, pda: new PublicKey(addr) }));
+        const infos = await connection.getMultipleAccountsInfo(entries.map(e => e.pda));
+        const live: Record<string,{ yesPercent:number; volume:string; totalVolume:number; resolutionTimestamp:number; title:string }> = {};
+        entries.forEach(({ id }, i) => {
+          const info = infos[i]; if (!info) return;
+          const md = parseFullMarket(info.data as Uint8Array);
+          const totalVotes = md.optionVotes.reduce((a,b)=>a+b,0);
+          const yesPercent = totalVotes > 0 ? Math.round(md.optionVotes[0] / totalVotes * 100) : 50;
+          const volOCT = md.totalVolume / 1_000_000;
+          const volume = volOCT >= 1000 ? (volOCT/1000).toFixed(1)+'K OCT' : volOCT > 0 ? volOCT.toFixed(2)+' OCT' : '0 OCT';
+          live[id] = { yesPercent, volume, totalVolume: md.totalVolume, resolutionTimestamp: md.resolutionTimestamp, title: md.title };
+        });
+        setGlobalLiveData(live);
+      } catch(e) { console.error(e); }
+    };
+    fetchMarkets();
+    const interval = setInterval(fetchMarkets, 20000);
+    return () => clearInterval(interval);
+  }, [connection]);
+
   useEffect(() => { fetchOctBalance(); }, [fetchOctBalance]);
   useEffect(() => { if (!connected) setOctBalance(0); }, [connected]);
 
@@ -1761,7 +1762,7 @@ const MainApp: FC = () => {
       <style>{GLOBAL_CSS}</style>
       <SpaceBg />
       <Navbar page={page} setPage={setPage} octBalance={octBalance} connected={connected} />
-      {page==='markets' && <MarketsPage connected={connected} />}
+      {page==='markets' && <MarketsPage connected={connected} globalLiveData={globalLiveData} />}
       {page==='leaderboard' && <LeaderboardPage octBalance={octBalance} />}
       {page==='activity' && <ActivityPage onBalanceRefresh={fetchOctBalance} />}
       {page==='analytics' && <AnalyticsPage />}
