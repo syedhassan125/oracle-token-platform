@@ -1074,10 +1074,82 @@ const ClaimRewardsTab: FC<{ onBalanceRefresh: () => void }> = ({ onBalanceRefres
 };
 
 // ─── Activity / Predictions ───────────────────────────────────────────────────
+// ─── Activity / Predictions ───────────────────────────────────────────────────
+type ActivityPred = {
+  key: string;
+  marketId: string;
+  marketTitle: string;
+  optionIndex: number;
+  amount: number;
+  claimed: boolean;
+  predPDAStr: string;
+  marketResolved: boolean;
+  correctOptionIndex: number | null;
+  won: boolean | null;
+  optionVotes: number[];
+  totalVolume: number;
+  resolutionTimestamp: number;
+};
+
 const ActivityPage: FC<{ onBalanceRefresh: () => void }> = ({ onBalanceRefresh }) => {
+  const { publicKey } = useWallet();
+  const { connection } = useConnection();
   const [tab, setTab] = useState<'active'|'claim'|'history'>('active');
-  const wins = BET_HISTORY.filter(b=>b.result==='Won').length;
-  const pnl = BET_HISTORY.reduce((s,b)=>s+b.profit,0);
+  const [preds, setPreds] = useState<ActivityPred[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!publicKey) { setPreds([]); return; }
+    setLoading(true);
+    (async () => {
+      try {
+        const { PublicKey } = await import('@solana/web3.js');
+        const marketIds = Object.keys(MARKET_ADDRESSES);
+        const entries = marketIds.map(id => {
+          const mPDA = new PublicKey(MARKET_ADDRESSES[id]);
+          const [predPDA] = PublicKey.findProgramAddressSync(
+            [Buffer.from('prediction'), publicKey.toBuffer(), mPDA.toBuffer()], PROGRAM_ID
+          );
+          return { id, mPDA, predPDA };
+        });
+        const predInfos = await connection.getMultipleAccountsInfo(entries.map(e => e.predPDA));
+        const found = entries.map((e, i) => ({ ...e, predInfo: predInfos[i] })).filter(e => e.predInfo !== null);
+        if (found.length === 0) { setPreds([]); setLoading(false); return; }
+        const marketInfos = await connection.getMultipleAccountsInfo(found.map(e => e.mPDA));
+        const result: ActivityPred[] = [];
+        for (let i = 0; i < found.length; i++) {
+          const { id, predPDA, predInfo } = found[i];
+          const pred = parsePrediction(predInfo!.data as Uint8Array);
+          if (!pred) continue;
+          const md = marketInfos[i] ? parseFullMarket(marketInfos[i]!.data as Uint8Array) : { resolved: false, correctOptionIndex: null, optionVotes: [0,0], totalVolume: 0, resolutionTimestamp: 0, title: '' };
+          const marketTitle = md.title || MARKETS.find(m => m.id.toString() === id)?.question || `Market ${id}`;
+          const won = md.resolved && md.correctOptionIndex !== null ? pred.optionIndex === md.correctOptionIndex : null;
+          result.push({ key: id, marketId: id, marketTitle, optionIndex: pred.optionIndex, amount: pred.amount, claimed: pred.claimed, predPDAStr: predPDA.toBase58(), marketResolved: md.resolved, correctOptionIndex: md.correctOptionIndex, won, optionVotes: md.optionVotes, totalVolume: md.totalVolume, resolutionTimestamp: md.resolutionTimestamp });
+        }
+        setPreds(result);
+      } catch (e) { console.error(e); }
+      finally { setLoading(false); }
+    })();
+  }, [publicKey, connection]);
+
+  const active = preds.filter(p => !p.marketResolved);
+  const history = preds.filter(p => p.marketResolved);
+  const wonCount = history.filter(p => p.won === true).length;
+  const winRate = history.length > 0 ? Math.round(wonCount / history.length * 100) : 0;
+  const pnl = history.reduce((s, p) => {
+    if (p.won === true) {
+      const totalVotes = p.optionVotes.reduce((a,b)=>a+b,0);
+      const potPayout = totalVotes > 0 ? (p.amount * p.totalVolume) / p.optionVotes[p.optionIndex] : p.amount;
+      return s + (potPayout - p.amount) / 1_000_000;
+    }
+    return s - p.amount / 1_000_000;
+  }, 0);
+
+  const formatDate = (ts: number) => ts > 0 ? new Date(ts * 1000).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : '—';
+
+  const emptyBox = (msg: string) => (
+    <div style={{ padding:48, textAlign:'center', color:'rgba(255,255,255,.25)', fontSize:13, background:'rgba(13,13,43,.6)', border:'1px solid rgba(139,92,246,.15)', borderRadius:14 }}>{msg}</div>
+  );
 
   return (
     <div style={{ maxWidth:1200, margin:'0 auto', padding:'32px 28px', fontFamily:"'Space Grotesk',sans-serif" }}>
@@ -1086,10 +1158,10 @@ const ActivityPage: FC<{ onBalanceRefresh: () => void }> = ({ onBalanceRefresh }
         <h1 style={{ fontSize:28, fontWeight:700, color:'white', letterSpacing:-.5, marginBottom:20 }}>Predictions</h1>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
           {[
-            { l:'Active Bets', v:String(ACTIVE_BETS.length), c:'white' },
-            { l:'Total Resolved', v:String(BET_HISTORY.length), c:'white' },
-            { l:'Win Rate', v:((wins/BET_HISTORY.length)*100).toFixed(0)+'%', c:'#10b981' },
-            { l:'Total P&L', v:(pnl>0?'+':'')+pnl.toLocaleString()+' OCT', c: pnl>=0?'#10b981':'#ef4444' },
+            { l:'Active Bets', v: loading ? '…' : String(active.length), c:'white' },
+            { l:'Total Resolved', v: loading ? '…' : String(history.length), c:'white' },
+            { l:'Win Rate', v: loading ? '…' : (history.length > 0 ? winRate+'%' : '—'), c:'#10b981' },
+            { l:'Total P&L', v: loading ? '…' : (history.length > 0 ? (pnl>=0?'+':'')+pnl.toFixed(2)+' OCT' : '—'), c: pnl>=0?'#10b981':'#ef4444' },
           ].map((s,i)=>(
             <div key={i} style={{ background:'rgba(13,13,43,.8)', border:'1px solid rgba(139,92,246,.15)', borderRadius:12, padding:'16px 18px' }}>
               <div style={{ fontSize:10, color:'rgba(255,255,255,.3)', letterSpacing:2, textTransform:'uppercase', marginBottom:8 }}>{s.l}</div>
@@ -1100,54 +1172,72 @@ const ActivityPage: FC<{ onBalanceRefresh: () => void }> = ({ onBalanceRefresh }
       </div>
 
       <div style={{ display:'flex', gap:0, borderBottom:'1px solid rgba(255,255,255,.08)', marginBottom:20 }}>
-        {[['active',`Active (${ACTIVE_BETS.length})`],['claim','Claim Rewards'],['history',`History (${BET_HISTORY.length})`]].map(([t,l])=>(
+        {[['active',`Active (${active.length})`],['claim','Claim Rewards'],['history',`History (${history.length})`]].map(([t,l])=>(
           <button key={t} onClick={()=>setTab(t as any)} style={{ padding:'10px 22px', background:'none', border:'none', color: tab===t?'white':'rgba(255,255,255,.4)', fontSize:14, fontWeight: tab===t?600:400, cursor:'pointer', fontFamily:"'Space Grotesk',sans-serif", borderBottom: tab===t?'2px solid #7c3aed':'2px solid transparent', marginBottom:-1, transition:'all .2s' }}>{l}</button>
         ))}
       </div>
 
       {tab==='active' && (
-        <div style={{ background:'rgba(13,13,43,.6)', border:'1px solid rgba(139,92,246,.15)', borderRadius:14, overflow:'hidden' }}>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 80px 100px 120px 110px 120px', gap:16, padding:'10px 18px', borderBottom:'1px solid rgba(255,255,255,.06)', background:'rgba(255,255,255,.02)' }}>
-            {['Market','Side','Amount','Potential Win','Current Odds','Ends'].map((h,i)=>(
-              <div key={i} style={{ fontSize:10, color:'rgba(255,255,255,.25)', letterSpacing:2, textTransform:'uppercase' }}>{h}</div>
-            ))}
-          </div>
-          {ACTIVE_BETS.map((b,idx)=>(
-            <div key={b.id} className="lb-row" style={{ display:'grid', gridTemplateColumns:'1fr 80px 100px 120px 110px 120px', gap:16, padding:'13px 18px', borderBottom: idx<ACTIVE_BETS.length-1?'1px solid rgba(255,255,255,.04)':'none', alignItems:'center' }}>
-              <div><div style={{ fontSize:13, color:'rgba(255,255,255,.85)', marginBottom:2 }}>{b.market}</div><div style={{ fontSize:10, color:'rgba(255,255,255,.3)' }}>{b.category}</div></div>
-              <div style={{ fontSize:11, padding:'3px 9px', borderRadius:5, background: b.side==='Yes'?'rgba(16,185,129,.12)':'rgba(239,68,68,.12)', color: b.side==='Yes'?'#10b981':'#ef4444', fontWeight:600, display:'inline-block', textTransform:'uppercase' }}>{b.side}</div>
-              <div style={{ fontSize:13, color:'rgba(255,255,255,.6)', fontWeight:500 }}>{b.amount} OCT</div>
-              <div style={{ fontSize:13, color:'#10b981', fontWeight:600 }}>{b.potential} OCT</div>
-              <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                <div style={{ flex:1, height:3, background:'rgba(255,255,255,.06)', borderRadius:2, overflow:'hidden' }}><div style={{ height:'100%', width:b.odds+'%', background:'linear-gradient(90deg,#10b981,rgba(16,185,129,.4))' }} /></div>
-                <span style={{ fontSize:11, color:'rgba(255,255,255,.4)', minWidth:28 }}>{b.odds}%</span>
-              </div>
-              <div style={{ fontSize:11, color:'rgba(255,255,255,.3)' }}>{b.ends}</div>
+        loading ? emptyBox('Loading your predictions…') :
+        !publicKey ? emptyBox('Connect your wallet to see your active predictions.') :
+        active.length === 0 ? emptyBox('No active predictions. Place a bet on a market to get started.') : (
+          <div style={{ background:'rgba(13,13,43,.6)', border:'1px solid rgba(139,92,246,.15)', borderRadius:14, overflow:'hidden' }}>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 80px 110px 130px 120px 120px', gap:16, padding:'10px 18px', borderBottom:'1px solid rgba(255,255,255,.06)', background:'rgba(255,255,255,.02)' }}>
+              {['Market','Side','Staked','Potential Win','Your Odds','Resolves'].map((h,i)=>(
+                <div key={i} style={{ fontSize:10, color:'rgba(255,255,255,.25)', letterSpacing:2, textTransform:'uppercase' }}>{h}</div>
+              ))}
             </div>
-          ))}
-        </div>
+            {active.map((b,idx)=>{
+              const totalVotes = b.optionVotes.reduce((a,c)=>a+c,0);
+              const myOdds = totalVotes > 0 ? Math.round(b.optionVotes[b.optionIndex] / totalVotes * 100) : 50;
+              const potentialWin = totalVotes > 0 ? (b.amount * b.totalVolume) / b.optionVotes[b.optionIndex] : b.amount;
+              return (
+                <div key={b.key} className="lb-row" style={{ display:'grid', gridTemplateColumns:'1fr 80px 110px 130px 120px 120px', gap:16, padding:'13px 18px', borderBottom: idx<active.length-1?'1px solid rgba(255,255,255,.04)':'none', alignItems:'center' }}>
+                  <div><div style={{ fontSize:13, color:'rgba(255,255,255,.85)', marginBottom:2 }}>{b.marketTitle}</div><div style={{ fontSize:10, color:'rgba(255,255,255,.3)' }}>Awaiting resolution</div></div>
+                  <div style={{ fontSize:11, padding:'3px 9px', borderRadius:5, background: b.optionIndex===0?'rgba(16,185,129,.12)':'rgba(239,68,68,.12)', color: b.optionIndex===0?'#10b981':'#ef4444', fontWeight:600, display:'inline-block' }}>{b.optionIndex===0?'YES':'NO'}</div>
+                  <div style={{ fontSize:13, color:'rgba(255,255,255,.6)', fontWeight:500 }}>{(b.amount/1_000_000).toFixed(2)} OCT</div>
+                  <div style={{ fontSize:13, color:'#10b981', fontWeight:600 }}>{(potentialWin/1_000_000).toFixed(2)} OCT</div>
+                  <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                    <div style={{ flex:1, height:3, background:'rgba(255,255,255,.06)', borderRadius:2, overflow:'hidden' }}><div style={{ height:'100%', width:myOdds+'%', background:'linear-gradient(90deg,#10b981,rgba(16,185,129,.4))' }} /></div>
+                    <span style={{ fontSize:11, color:'rgba(255,255,255,.4)', minWidth:28 }}>{myOdds}%</span>
+                  </div>
+                  <div style={{ fontSize:11, color:'rgba(255,255,255,.3)' }}>{formatDate(b.resolutionTimestamp)}</div>
+                </div>
+              );
+            })}
+          </div>
+        )
       )}
 
       {tab==='claim' && <ClaimRewardsTab onBalanceRefresh={onBalanceRefresh} />}
 
       {tab==='history' && (
-        <div style={{ background:'rgba(13,13,43,.6)', border:'1px solid rgba(139,92,246,.15)', borderRadius:14, overflow:'hidden' }}>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 80px 100px 80px 110px 90px', gap:16, padding:'10px 18px', borderBottom:'1px solid rgba(255,255,255,.06)', background:'rgba(255,255,255,.02)' }}>
-            {['Market','Side','Amount','Result','Payout','P&L'].map((h,i)=>(
-              <div key={i} style={{ fontSize:10, color:'rgba(255,255,255,.25)', letterSpacing:2, textTransform:'uppercase' }}>{h}</div>
-            ))}
-          </div>
-          {BET_HISTORY.map((b,idx)=>(
-            <div key={b.id} className="lb-row" style={{ display:'grid', gridTemplateColumns:'1fr 80px 100px 80px 110px 90px', gap:16, padding:'13px 18px', borderBottom: idx<BET_HISTORY.length-1?'1px solid rgba(255,255,255,.04)':'none', alignItems:'center' }}>
-              <div><div style={{ fontSize:13, color:'rgba(255,255,255,.85)', marginBottom:2 }}>{b.market}</div><div style={{ fontSize:10, color:'rgba(255,255,255,.3)' }}>{b.category} · {b.date}</div></div>
-              <div style={{ fontSize:11, padding:'3px 9px', borderRadius:5, background: b.side==='Yes'?'rgba(16,185,129,.12)':'rgba(239,68,68,.12)', color: b.side==='Yes'?'#10b981':'#ef4444', fontWeight:600, display:'inline-block', textTransform:'uppercase' }}>{b.side}</div>
-              <div style={{ fontSize:13, color:'rgba(255,255,255,.5)' }}>{b.amount} OCT</div>
-              <div style={{ fontSize:11, padding:'3px 9px', borderRadius:5, background: b.result==='Won'?'rgba(16,185,129,.12)':'rgba(239,68,68,.12)', color: b.result==='Won'?'#10b981':'#ef4444', fontWeight:600, display:'inline-block' }}>{b.result}</div>
-              <div style={{ fontSize:13, color: b.result==='Won'?'#10b981':'rgba(255,255,255,.3)', fontWeight: b.result==='Won'?600:400 }}>{b.result==='Won'?b.payout+' OCT':'—'}</div>
-              <div style={{ fontSize:14, fontWeight:700, color: b.profit>0?'#10b981':'#ef4444', letterSpacing:-.3 }}>{b.profit>0?'+':''}{b.profit}</div>
+        loading ? emptyBox('Loading…') :
+        !publicKey ? emptyBox('Connect your wallet to see your history.') :
+        history.length === 0 ? emptyBox('No resolved predictions yet.') : (
+          <div style={{ background:'rgba(13,13,43,.6)', border:'1px solid rgba(139,92,246,.15)', borderRadius:14, overflow:'hidden' }}>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 80px 110px 80px 120px 90px', gap:16, padding:'10px 18px', borderBottom:'1px solid rgba(255,255,255,.06)', background:'rgba(255,255,255,.02)' }}>
+              {['Market','Side','Staked','Result','Resolved','P&L'].map((h,i)=>(
+                <div key={i} style={{ fontSize:10, color:'rgba(255,255,255,.25)', letterSpacing:2, textTransform:'uppercase' }}>{h}</div>
+              ))}
             </div>
-          ))}
-        </div>
+            {history.map((b,idx)=>{
+              const profit = b.won === true
+                ? (() => { const totalVotes=b.optionVotes.reduce((a,c)=>a+c,0); const pay=totalVotes>0?(b.amount*b.totalVolume)/b.optionVotes[b.optionIndex]:b.amount; return (pay-b.amount)/1_000_000; })()
+                : -b.amount/1_000_000;
+              return (
+                <div key={b.key} className="lb-row" style={{ display:'grid', gridTemplateColumns:'1fr 80px 110px 80px 120px 90px', gap:16, padding:'13px 18px', borderBottom: idx<history.length-1?'1px solid rgba(255,255,255,.04)':'none', alignItems:'center' }}>
+                  <div><div style={{ fontSize:13, color:'rgba(255,255,255,.85)', marginBottom:2 }}>{b.marketTitle}</div><div style={{ fontSize:10, color:'rgba(255,255,255,.3)' }}>Resolved: {b.correctOptionIndex===0?'YES':'NO'}</div></div>
+                  <div style={{ fontSize:11, padding:'3px 9px', borderRadius:5, background: b.optionIndex===0?'rgba(16,185,129,.12)':'rgba(239,68,68,.12)', color: b.optionIndex===0?'#10b981':'#ef4444', fontWeight:600, display:'inline-block' }}>{b.optionIndex===0?'YES':'NO'}</div>
+                  <div style={{ fontSize:13, color:'rgba(255,255,255,.5)' }}>{(b.amount/1_000_000).toFixed(2)} OCT</div>
+                  <div style={{ fontSize:11, padding:'3px 9px', borderRadius:5, background: b.won?'rgba(16,185,129,.12)':'rgba(239,68,68,.12)', color: b.won?'#10b981':'#ef4444', fontWeight:600, display:'inline-block' }}>{b.won?'Won':'Lost'}</div>
+                  <div style={{ fontSize:11, color:'rgba(255,255,255,.3)' }}>{formatDate(b.resolutionTimestamp)}</div>
+                  <div style={{ fontSize:14, fontWeight:700, color: profit>0?'#10b981':'#ef4444', letterSpacing:-.3 }}>{profit>0?'+':''}{profit.toFixed(2)}</div>
+                </div>
+              );
+            })}
+          </div>
+        )
       )}
     </div>
   );
