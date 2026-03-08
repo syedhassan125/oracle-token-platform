@@ -775,12 +775,17 @@ const MarketsPage: FC<{ connected: boolean }> = ({ connected }) => {
           <h2 style={{ fontSize:28, fontWeight:700, color:'white', letterSpacing:-.5, marginBottom:10 }}>Predict the Future. Earn OCT.</h2>
           <p style={{ fontSize:15, color:'rgba(255,255,255,.45)', marginBottom:28, maxWidth:460, margin:'0 auto 28px' }}>Trade on real-world outcomes using Oracle Tokens on Solana devnet. Connect your wallet to place predictions.</p>
           <div style={{ display:'flex', justifyContent:'center', gap:32, marginBottom:28 }}>
-            {[{v:'$24.7M',l:'Total Volume'},{v:'2,841',l:'Active Traders'},{v:String(MARKETS.length),l:'Open Markets'}].map((s,i)=>(
-              <div key={i} style={{ textAlign:'center' }}>
-                <div style={{ fontSize:22, fontWeight:700, color:'white', letterSpacing:-.5 }}>{s.v}</div>
-                <div style={{ fontSize:11, color:'rgba(255,255,255,.35)', letterSpacing:1.5, textTransform:'uppercase', marginTop:2 }}>{s.l}</div>
-              </div>
-            ))}
+            {(() => {
+              const totalVol = Object.values(liveData).reduce((s,d) => s + d.totalVolume, 0) / 1_000_000;
+              const openCount = MARKETS.length - Object.values(liveData).filter(d => d.resolutionTimestamp > 0 && d.resolutionTimestamp * 1000 < Date.now()).length;
+              const volStr = totalVol >= 1000 ? (totalVol/1000).toFixed(1)+'K OCT' : totalVol > 0 ? totalVol.toFixed(2)+' OCT' : '0 OCT';
+              return [{v: volStr, l:'Total Volume'},{v: String(MARKETS.length), l:'Open Markets'},{v:'Solana Devnet',l:'Network'}].map((s,i)=>(
+                <div key={i} style={{ textAlign:'center' }}>
+                  <div style={{ fontSize:22, fontWeight:700, color:'white', letterSpacing:-.5 }}>{s.v}</div>
+                  <div style={{ fontSize:11, color:'rgba(255,255,255,.35)', letterSpacing:1.5, textTransform:'uppercase', marginTop:2 }}>{s.l}</div>
+                </div>
+              ));
+            })()}
           </div>
           <div style={{ fontSize:13, color:'rgba(255,255,255,.3)' }}>↑ Connect wallet using the button in the top right</div>
         </div>
