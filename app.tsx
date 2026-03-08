@@ -83,6 +83,46 @@ const BET_HISTORY = [
   { id: 5, market: "Nvidia +50% in 2024?", category: "Finance", side: "Yes", amount: 600, result: "Won", payout: 1080, date: "Dec 20, 2024", profit: 480 },
 ];
 
+
+// ─── Pyth Price Feeds ─────────────────────────────────────────────────────────
+const PYTH_FEEDS: Record<string, { id: string; label: string; target?: number }> = {
+  'eth':  { id: 'ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace', label: 'ETH', target: 10000 },
+  'btc':  { id: 'e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43', label: 'BTC', target: 150000 },
+  'sol':  { id: 'ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d', label: 'SOL', target: 500 },
+  'gold': { id: '765d2ba906dbc32ca17cc11f5310a89e9ee1f6420508c63861f2f8ba4ee34bb2', label: 'XAU', target: 3500 },
+};
+
+// Market icon -> pyth feed key
+const MARKET_PYTH_KEY: Record<number, string> = {
+  1: 'eth', 3: 'btc', 4: 'sol', 6: 'eth', 7: 'sol', 9: 'gold',
+};
+
+function usePythPrices() {
+  const [prices, setPrices] = useState<Record<string, number>>({});
+  useEffect(() => {
+    const feedIds = Object.values(PYTH_FEEDS).map(f => f.id);
+    const url = `https://hermes.pyth.network/v2/updates/price/latest?${feedIds.map(id=>`ids[]=${id}`).join('&')}`;
+    const fetchPrices = async () => {
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        const result: Record<string, number> = {};
+        for (const item of data.parsed || []) {
+          const entry = Object.entries(PYTH_FEEDS).find(([,f]) => f.id === item.id);
+          if (!entry) continue;
+          const price = parseFloat(item.price.price) * Math.pow(10, item.price.expo);
+          result[entry[0]] = price;
+        }
+        setPrices(result);
+      } catch(e) { console.error('Pyth fetch error', e); }
+    };
+    fetchPrices();
+    const interval = setInterval(fetchPrices, 15000);
+    return () => clearInterval(interval);
+  }, []);
+  return prices;
+}
+
 // ─── Global styles ─────────────────────────────────────────────────────────────
 const GLOBAL_CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
@@ -492,7 +532,7 @@ const BetModal: FC<{ market: any; onClose: () => void }> = ({ market, onClose })
 };
 
 // ─── Market Card ──────────────────────────────────────────────────────────────
-const MarketCard: FC<{ market: any; featured?: boolean; delay?: number }> = ({ market, featured, delay = 0 }) => {
+const MarketCard: FC<{ market: any; featured?: boolean; delay?: number; pythPrice?: number; pythLabel?: string; pythTarget?: number }> = ({ market, featured, delay = 0, pythPrice, pythLabel, pythTarget }) => {
   const [modal, setModal] = useState(false);
   const [mounted, setMounted] = useState(false);
   const yesColor = market.yesPercent >= 50 ? '#00d4aa' : '#ff6b6b';
@@ -515,6 +555,12 @@ const MarketCard: FC<{ market: any; featured?: boolean; delay?: number }> = ({ m
         <div style={{ position:'absolute', bottom:10, right:14, fontSize:10, color:'rgba(255,255,255,.25)', letterSpacing:.5 }}>
           {market.volume} · {market.participants.toLocaleString()} traders
         </div>
+        {pythPrice !== undefined && (
+          <div style={{ position:'absolute', top:12, right:14, display:'flex', alignItems:'center', gap:5, background:'rgba(0,0,0,.35)', backdropFilter:'blur(6px)', borderRadius:6, padding:'3px 8px', border:'1px solid rgba(245,158,11,.25)' }}>
+            <span style={{ width:5, height:5, borderRadius:'50%', background:'#f59e0b', boxShadow:'0 0 6px #f59e0b', animation:'pulse 2s ease-in-out infinite', display:'inline-block' }} />
+            <span style={{ fontSize:10, color:'rgba(245,158,11,.9)', fontWeight:600, letterSpacing:.3 }}>{pythLabel} ${pythPrice.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0})}</span>
+          </div>
+        )}
       </div>
       {modal && <BetModal market={market} onClose={()=>setModal(false)} />}
     </>
@@ -540,7 +586,7 @@ const MarketCard: FC<{ market: any; featured?: boolean; delay?: number }> = ({ m
           <div style={{ height:'100%', width: mounted ? market.yesPercent+'%' : '0%', background:`linear-gradient(90deg,${yesColor},rgba(0,212,170,.3))`, borderRadius:2, transition:'width .9s cubic-bezier(.4,0,.2,1)', boxShadow:`0 0 8px ${yesColor}55` }} />
         </div>
 
-        <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'rgba(255,255,255,.35)', marginBottom:14, alignItems:'center' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'rgba(255,255,255,.35)', marginBottom: pythPrice !== undefined ? 8 : 14, alignItems:'center' }}>
           <span style={{ display:'flex', alignItems:'center', gap:5 }}>
             <span style={{ position:'relative', display:'inline-block', width:6, height:6 }}>
               <span style={{ position:'absolute', inset:0, borderRadius:'50%', background:'#22c55e', animation:'livePulse 2s ease-out infinite' }} />
@@ -550,6 +596,18 @@ const MarketCard: FC<{ market: any; featured?: boolean; delay?: number }> = ({ m
           </span>
           <span>Ends in {market.ends}</span>
         </div>
+        {pythPrice !== undefined && (
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14, background:'rgba(245,158,11,.06)', border:'1px solid rgba(245,158,11,.15)', borderRadius:7, padding:'5px 10px' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+              <span style={{ width:5, height:5, borderRadius:'50%', background:'#f59e0b', boxShadow:'0 0 6px #f59e0b', animation:'pulse 2s ease-in-out infinite', display:'inline-block' }} />
+              <span style={{ fontSize:10, color:'rgba(245,158,11,.6)', letterSpacing:1, textTransform:'uppercase' as const }}>Pyth · {pythLabel}/USD</span>
+            </div>
+            <div style={{ textAlign:'right' as const }}>
+              <span style={{ fontSize:12, fontWeight:700, color:'rgba(245,158,11,.9)' }}>${pythPrice.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0})}</span>
+              {pythTarget && <span style={{ fontSize:9, color:'rgba(255,255,255,.25)', marginLeft:5 }}>target ${pythTarget.toLocaleString()}</span>}
+            </div>
+          </div>
+        )}
 
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:7 }}>
           <button onClick={()=>setModal(true)} className="buy-btn" style={{ padding:'8px 0', borderRadius:8, border:'1px solid rgba(0,212,170,.3)', background:'rgba(0,212,170,.1)', color:'#00d4aa', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:"'Space Grotesk',sans-serif" }}>Buy YES</button>
@@ -663,12 +721,43 @@ const CreateMarketPage: FC = () => {
 
 // ─── Markets Home ─────────────────────────────────────────────────────────────
 const MarketsPage: FC<{ connected: boolean }> = ({ connected }) => {
+  const { connection } = useConnection();
   const [cat, setCat] = useState('All');
   const [tick, setTick] = useState(0);
+  const [liveData, setLiveData] = useState<Record<string,{ yesPercent:number; volume:string; totalVolume:number }>>({});
+  const pythPrices = usePythPrices();
 
   useEffect(()=>{ const i = setInterval(()=>setTick(t=>t+1),5000); return ()=>clearInterval(i); },[]);
 
-  const filtered = cat==='All' ? MARKETS : MARKETS.filter(m=>m.category===cat);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { PublicKey } = await import('@solana/web3.js');
+        const entries = Object.entries(MARKET_ADDRESSES).map(([id, addr]) => ({ id, pda: new PublicKey(addr) }));
+        const infos = await connection.getMultipleAccountsInfo(entries.map(e => e.pda));
+        const live: Record<string,{ yesPercent:number; volume:string; totalVolume:number }> = {};
+        entries.forEach(({ id }, i) => {
+          const info = infos[i];
+          if (!info) return;
+          const md = parseFullMarket(info.data as Uint8Array);
+          const totalVotes = md.optionVotes.reduce((a,b)=>a+b,0);
+          const yesPercent = totalVotes > 0 ? Math.round(md.optionVotes[0] / totalVotes * 100) : 50;
+          const volOCT = md.totalVolume / 1_000_000;
+          const volume = volOCT >= 1000 ? (volOCT/1000).toFixed(1)+'K OCT' : volOCT > 0 ? volOCT.toFixed(2)+' OCT' : '0 OCT';
+          live[id] = { yesPercent, volume, totalVolume: md.totalVolume };
+        });
+        setLiveData(live);
+      } catch(e) { console.error(e); }
+    })();
+  }, [connection]);
+
+  const enriched = MARKETS.map(m => {
+    const live = liveData[m.id.toString()];
+    if (!live) return m;
+    return { ...m, yesPercent: live.yesPercent, volume: live.volume, volumeNum: live.totalVolume };
+  });
+
+  const filtered = cat==='All' ? enriched : enriched.filter(m=>m.category===cat);
   const topTraders = LEADERBOARD_DATA.slice(0,3);
   const actFeed = ACTIVITY_FEED.slice(0, tick%2===0?ACTIVITY_FEED.length:ACTIVITY_FEED.length);
 
@@ -702,7 +791,7 @@ const MarketsPage: FC<{ connected: boolean }> = ({ connected }) => {
           <h2 style={{ fontSize:18, fontWeight:700, color:'white', letterSpacing:-.3 }}>Trending Markets</h2>
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14 }}>
-          {TRENDING.map((m,i)=><MarketCard key={m.id} market={m} featured delay={i} />)}
+          {enriched.slice(0,3).map((m,i)=>{ const pk=MARKET_PYTH_KEY[m.id]; const pf=pk?PYTH_FEEDS[pk]:undefined; return <MarketCard key={m.id} market={m} featured delay={i} pythPrice={pk?pythPrices[pk]:undefined} pythLabel={pf?.label} pythTarget={pf?.target} />; })}
         </div>
       </div>
 
@@ -717,7 +806,7 @@ const MarketsPage: FC<{ connected: boolean }> = ({ connected }) => {
 
       {/* Markets grid */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:36 }}>
-        {filtered.slice(0,8).map((m,i)=><MarketCard key={m.id} market={m} delay={i} />)}
+        {filtered.slice(0,8).map((m,i)=>{ const pk=MARKET_PYTH_KEY[m.id]; const pf=pk?PYTH_FEEDS[pk]:undefined; return <MarketCard key={m.id} market={m} delay={i} pythPrice={pk?pythPrices[pk]:undefined} pythLabel={pf?.label} pythTarget={pf?.target} />; })}
       </div>
 
       {/* Bottom row */}
