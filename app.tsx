@@ -992,6 +992,50 @@ function parseMarketResolution(data: Uint8Array): { resolved: boolean; correctOp
   } catch { return { resolved: false, correctOptionIndex: null }; }
 }
 
+function parseFullMarket(data: Uint8Array): { resolved: boolean; correctOptionIndex: number | null; optionVotes: number[]; totalVolume: number; resolutionTimestamp: number; title: string } {
+  try {
+    const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+    const dec = new TextDecoder();
+    let o = 8;   // discriminator
+    o += 8;      // market_id u64
+    o += 32;     // creator pubkey
+    // title String
+    const titleLen = view.getUint32(o, true); o += 4;
+    const title = dec.decode(data.slice(o, o + titleLen)); o += titleLen;
+    // description String
+    const descLen = view.getUint32(o, true); o += 4 + descLen;
+    o += 1; // category u8
+    // options Vec<String>
+    const numOpts = view.getUint32(o, true); o += 4;
+    for (let i = 0; i < numOpts; i++) { const l = view.getUint32(o, true); o += 4 + l; }
+    // option_votes Vec<u64>
+    const numVotes = view.getUint32(o, true); o += 4;
+    const optionVotes: number[] = [];
+    for (let i = 0; i < numVotes; i++) {
+      const lo = view.getUint32(o, true);
+      const hi = view.getUint32(o + 4, true);
+      optionVotes.push(hi * 0x100000000 + lo);
+      o += 8;
+    }
+    // resolution_timestamp i64
+    const tsLo = view.getUint32(o, true);
+    const tsHi = view.getInt32(o + 4, true);
+    const resolutionTimestamp = tsHi * 0x100000000 + tsLo;
+    o += 8;
+    // status u8 (2 = Resolved)
+    const status = view.getUint8(o); o += 1;
+    // total_volume u64
+    const volLo = view.getUint32(o, true);
+    const volHi = view.getUint32(o + 4, true);
+    const totalVolume = volHi * 0x100000000 + volLo;
+    o += 8;
+    // correct_option_index Option<u8>
+    const hasCorrect = view.getUint8(o); o += 1;
+    const correctOptionIndex = hasCorrect ? view.getUint8(o) : null;
+    return { resolved: status === 2, correctOptionIndex, optionVotes, totalVolume, resolutionTimestamp, title };
+  } catch { return { resolved: false, correctOptionIndex: null, optionVotes: [], totalVolume: 0, resolutionTimestamp: 0, title: '' }; }
+}
+
 const ClaimRewardsTab: FC<{ onBalanceRefresh: () => void }> = ({ onBalanceRefresh }) => {
   const { publicKey, sendTransaction } = useWallet();
   const { connection } = useConnection();
