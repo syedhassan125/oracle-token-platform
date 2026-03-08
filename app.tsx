@@ -12,7 +12,7 @@ const ORACLE_TOKEN_MINT = new PublicKey("6SnhG4g4icbJ2i9U97zEtxkSc6dZ5Z8sCSTtSJH
 const HELIUS_RPC = 'https://devnet.helius-rpc.com/?api-key=bb6da2ff-6316-4784-9ef8-53de07864e95';
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
-const CATEGORIES = ['All', 'Crypto', 'Politics', 'AI', 'Sports', 'Finance'];
+const CATEGORIES = ['All', 'Crypto', 'Sports', 'Politics', 'AI', 'Finance', 'Science'];
 const CAT_ICONS: Record<string, string> = {
   'All': '✦', 'Crypto': '₿', 'Politics': '🗳️', 'AI': '🤖', 'Sports': '🏆', 'Finance': '📈', 'Science': '🌙'
 };
@@ -28,6 +28,26 @@ const MARKETS = [
   { id: 8,  question: "Will AI replace 10% of jobs by 2027?",        category: "AI",       yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "ai",     gradient: "linear-gradient(135deg,#1a0a0a,#3d1a0a,#1a0a3e)" },
   { id: 9,  question: "Will gold hit $3500 in 2026?",                category: "Finance",  yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "finance", gradient: "linear-gradient(135deg,#0a1a1a,#0a2d2d,#0a1a3e)" },
   { id: 10, question: "Will SpaceX land on Mars by 2030?",           category: "Science",  yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "planet",  gradient: "linear-gradient(135deg,#1a1a1a,#2d2d2d,#1a1a3e)" },
+  // Sports markets
+  { id: 11, question: "Will Manchester City win Premier League 2025/26?",    category: "Sports",  yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "sports", gradient: "linear-gradient(135deg,#0a1a2e,#0a2d3d,#0a1a4e)" },
+  { id: 12, question: "Will the Golden State Warriors reach NBA Finals 2026?",category: "Sports",  yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "sports", gradient: "linear-gradient(135deg,#1a1a0a,#2d2d0a,#1a2a0a)" },
+  { id: 13, question: "Will Novak Djokovic win Wimbledon 2026?",             category: "Sports",  yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "sports", gradient: "linear-gradient(135deg,#0a2e0a,#0a3d1a,#0a1a2e)" },
+  { id: 14, question: "Will India win the 2026 ICC T20 World Cup?",          category: "Sports",  yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "sports", gradient: "linear-gradient(135deg,#2e1a0a,#3d2d0a,#1a0a2e)" },
+  { id: 15, question: "Will Max Verstappen win F1 Championship 2026?",       category: "Sports",  yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "sports", gradient: "linear-gradient(135deg,#1a0a0a,#2e0a0a,#1a0a2e)" },
+  // New crypto
+  { id: 16, question: "Will XRP reach $10 by end of 2026?",                 category: "Crypto",  yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "btc",   gradient: "linear-gradient(135deg,#0a0a2e,#1a1a4e,#0a1a3e)" },
+  { id: 17, question: "Will Dogecoin hit $1 before 2027?",                  category: "Crypto",  yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "sol",   gradient: "linear-gradient(135deg,#1a1a0a,#2d2d0a,#1a0a3e)" },
+  { id: 18, question: "Will Bitcoin dominance drop below 40% in 2026?",     category: "Crypto",  yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "btc",   gradient: "linear-gradient(135deg,#0a1a0a,#1a2d1a,#0a1a2e)" },
+  // Politics
+  { id: 19, question: "Will the US pass a crypto regulation bill in 2026?",  category: "Politics",yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "finance",gradient: "linear-gradient(135deg,#0a0a1a,#1a1a2d,#0a1a3e)" },
+  { id: 20, question: "Will the UK rejoin the EU Single Market by 2028?",   category: "Politics",yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "finance",gradient: "linear-gradient(135deg,#1a0a1a,#2d0a2d,#0a1a3e)" },
+  // AI / Tech
+  { id: 21, question: "Will GPT-5 be released by end of 2025?",             category: "AI",      yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "ai",    gradient: "linear-gradient(135deg,#0a1a1a,#0a2d2d,#1a0a3e)" },
+  { id: 22, question: "Will Apple release AR glasses before 2027?",          category: "AI",      yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "ai",    gradient: "linear-gradient(135deg,#1a0a1a,#2d0a2d,#0a1a2e)" },
+  // Finance / Science
+  { id: 23, question: "Will US inflation fall below 2% in 2026?",           category: "Finance", yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "finance",gradient: "linear-gradient(135deg,#0a1a0a,#0a2d1a,#0a0a3e)" },
+  { id: 24, question: "Will Tesla stock hit $500 in 2026?",                  category: "Finance", yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "finance",gradient: "linear-gradient(135deg,#1a1a0a,#2d2a0a,#0a1a3e)" },
+  { id: 25, question: "Will a commercial fusion reactor go online by 2030?", category: "Science", yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "planet", gradient: "linear-gradient(135deg,#0a0a1a,#1a0a2d,#1a1a0a)" },
 ];
 
 const TRENDING = [MARKETS[0], MARKETS[1], MARKETS[2]]; // replaced by enriched.slice(0,3) in MarketsPage
@@ -56,6 +76,22 @@ const MARKET_ADDRESSES: Record<string, string> = {
   '8': 'FD3ohDx6FBMz2b4PecAGWwJVNjk9RBtosCp9Gu75s4mm',
   '9': 'ByfnE38LZar9cM3GNAXuqhPdWjY8VqhAMZtToLKgNUA6',
   '10': '13V9xuSRiG1U9j3sEdUmxz9P9vYE6MukYGcXkMyeTyNE',
+  // New markets — created Mar 8 2026
+  '11': 'BGTDotZYdPt7t8wszyTNPSX4QRLBVsUvSfwouc8TYzHk',
+  '12': '6LC7zEXVPGko8HoQ1hA2eULkFmBtj3XbCRmfaJAjzWnc',
+  '13': 'BpZamkKDMqAX2BbNdLS53gKQe9UAxppRACnU46udetDE',
+  '14': '8jpBvRcGBQFTDY3PjetoUk4vJZUi3AWBhbq3Zgd76F3X',
+  '15': '66xc3Z8t2NTv35TYGSH7dczFdw9FdB16wa234PfWjnMs',
+  '16': '5KKVfWFmPNEfhZ2iSUHwp6DeVtWonyAYzLswPnF2dnfE',
+  '17': 'GEXcEvSZb2BndVUFABoAxxEE9CFSyCPFwVj383mBzYgX',
+  '18': 'HEEfggGmfSAJUCxkLy8hbBUzr5xTzuE35SHhG5QA2J8E',
+  '19': 'AoLusfxgq8mKo7h6o2GpfMPHseLYmKV18oFFnz5G7Nsc',
+  '20': '1Q7DpbWhqogFG7bLrf3jHLWNZWUj3cYg1g4dutiCCZZ',
+  '21': '4SyPqY8kMotZWUDtuhMmmqkSThAJnVwMVkBqLVE7syuY',
+  '22': '6L1cJCvvJE1GkGELhbMMcAm9vitkiguYUbJ3wQYfP9ui',
+  '23': '7X3MsG8s6nkeStK1s9roTkumReD9Hd6dFqAyVDFnYYfi',
+  '24': 'DJxffSiVTrNb8PEmtXn524tcBRyQgSsnrNurW4nW482B',
+  '25': 'CnhqSvCjrF1yySDZy6DSATMyE1SJtucabhDmxXgExqoM',
 };
 
 const ACTIVITY_FEED = [
@@ -426,24 +462,45 @@ const BetModal: FC<{ market: any; onClose: () => void }> = ({ market, onClose })
         tx.add(createAssociatedTokenAccountInstruction(publicKey, vault, MARKET_PDA, ORACLE_TOKEN_MINT, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID));
       }
 
-      // makePrediction — discriminator + option_index (u8) + amount (u64 LE)
-      const disc   = Buffer.from([206, 137, 238, 92, 59, 16, 13, 227]);
-      const optBuf = Buffer.alloc(1); optBuf.writeUInt8(side === 'yes' ? 0 : 1, 0);
-      const amtBuf = Buffer.alloc(8); amtBuf.writeBigUInt64LE(BigInt(Math.floor(parseFloat(amount) * 1_000_000)), 0); // OCT has 6 decimals
-      tx.add(new TransactionInstruction({
-        programId: PROGRAM_ID,
-        keys: [
-          { pubkey: predPDA,                  isSigner: false, isWritable: true },
-          { pubkey: MARKET_PDA,               isSigner: false, isWritable: true },
-          { pubkey: userProfile,              isSigner: false, isWritable: true },
-          { pubkey: publicKey,                isSigner: true,  isWritable: true },
-          { pubkey: userTA,                   isSigner: false, isWritable: true },
-          { pubkey: vault,                    isSigner: false, isWritable: true },
-          { pubkey: TOKEN_PROGRAM_ID,         isSigner: false, isWritable: false },
-          { pubkey: SystemProgram.programId,  isSigner: false, isWritable: false },
-        ],
-        data: Buffer.concat([disc, optBuf, amtBuf]),
-      }));
+      const rawAmt = BigInt(Math.floor(parseFloat(amount) * 1_000_000)); // OCT 6 decimals
+      const amtBuf = Buffer.alloc(8); amtBuf.writeBigUInt64LE(rawAmt, 0);
+      const predExists = !!(await connection.getAccountInfo(predPDA));
+
+      if (predExists) {
+        // add_to_prediction — discriminator + amount (u64 LE)
+        const disc = Buffer.from([245, 238, 134, 117, 133, 45, 175, 106]);
+        tx.add(new TransactionInstruction({
+          programId: PROGRAM_ID,
+          keys: [
+            { pubkey: predPDA,                  isSigner: false, isWritable: true },
+            { pubkey: MARKET_PDA,               isSigner: false, isWritable: true },
+            { pubkey: userProfile,              isSigner: false, isWritable: true },
+            { pubkey: publicKey,                isSigner: true,  isWritable: true },
+            { pubkey: userTA,                   isSigner: false, isWritable: true },
+            { pubkey: vault,                    isSigner: false, isWritable: true },
+            { pubkey: TOKEN_PROGRAM_ID,         isSigner: false, isWritable: false },
+          ],
+          data: Buffer.concat([disc, amtBuf]),
+        }));
+      } else {
+        // makePrediction — discriminator + option_index (u8) + amount (u64 LE)
+        const disc   = Buffer.from([206, 137, 238, 92, 59, 16, 13, 227]);
+        const optBuf = Buffer.alloc(1); optBuf.writeUInt8(side === 'yes' ? 0 : 1, 0);
+        tx.add(new TransactionInstruction({
+          programId: PROGRAM_ID,
+          keys: [
+            { pubkey: predPDA,                  isSigner: false, isWritable: true },
+            { pubkey: MARKET_PDA,               isSigner: false, isWritable: true },
+            { pubkey: userProfile,              isSigner: false, isWritable: true },
+            { pubkey: publicKey,                isSigner: true,  isWritable: true },
+            { pubkey: userTA,                   isSigner: false, isWritable: true },
+            { pubkey: vault,                    isSigner: false, isWritable: true },
+            { pubkey: TOKEN_PROGRAM_ID,         isSigner: false, isWritable: false },
+            { pubkey: SystemProgram.programId,  isSigner: false, isWritable: false },
+          ],
+          data: Buffer.concat([disc, optBuf, amtBuf]),
+        }));
+      }
 
       const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
       tx.recentBlockhash = blockhash;

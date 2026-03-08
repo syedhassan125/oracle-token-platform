@@ -77,7 +77,7 @@ pub mod oracle_token {
         let market = &mut ctx.accounts.market;
         let prediction = &mut ctx.accounts.prediction;
         let user_profile = &mut ctx.accounts.user_profile;
-        
+
         require!(market.status == MarketStatus::Active, ErrorCode::MarketNotActive);
         require!(
             Clock::get()?.unix_timestamp < market.resolution_timestamp,
@@ -87,18 +87,14 @@ pub mod oracle_token {
             (option_index as usize) < market.options.len(),
             ErrorCode::InvalidOption
         );
-        
-        // Transfer tokens from user to market vault
+
         let cpi_accounts = Transfer {
             from: ctx.accounts.user_token_account.to_account_info(),
             to: ctx.accounts.market_vault.to_account_info(),
             authority: ctx.accounts.user.to_account_info(),
         };
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-        token::transfer(cpi_ctx, amount)?;
-        
-        // Record prediction
+        token::transfer(CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts), amount)?;
+
         prediction.user = ctx.accounts.user.key();
         prediction.market = market.key();
         prediction.option_index = option_index;
@@ -106,16 +102,48 @@ pub mod oracle_token {
         prediction.timestamp = Clock::get()?.unix_timestamp;
         prediction.claimed = false;
         prediction.bump = ctx.bumps.prediction;
-        
-        // Update market stats
+
         market.total_volume += amount;
         market.option_votes[option_index as usize] += amount;
-        
-        // Update user profile
         user_profile.total_predictions += 1;
         user_profile.total_volume += amount;
-        
-        msg!("Prediction made on market {} for option {}", market.market_id, option_index);
+
+        msg!("Prediction on market {} option {} amount {}", market.market_id, option_index, amount);
+        Ok(())
+    }
+
+    /// Add more tokens to an existing prediction (same side only)
+    pub fn add_to_prediction(
+        ctx: Context<AddToPrediction>,
+        amount: u64,
+    ) -> Result<()> {
+        let market = &mut ctx.accounts.market;
+        let prediction = &mut ctx.accounts.prediction;
+        let user_profile = &mut ctx.accounts.user_profile;
+
+        require!(market.status == MarketStatus::Active, ErrorCode::MarketNotActive);
+        require!(
+            Clock::get()?.unix_timestamp < market.resolution_timestamp,
+            ErrorCode::MarketExpired
+        );
+        require!(prediction.user == ctx.accounts.user.key(), ErrorCode::Unauthorized);
+        require!(!prediction.claimed, ErrorCode::AlreadyClaimed);
+
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.user_token_account.to_account_info(),
+            to: ctx.accounts.market_vault.to_account_info(),
+            authority: ctx.accounts.user.to_account_info(),
+        };
+        token::transfer(CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts), amount)?;
+
+        let option_index = prediction.option_index;
+        prediction.amount = prediction.amount.checked_add(amount).unwrap();
+
+        market.total_volume += amount;
+        market.option_votes[option_index as usize] += amount;
+        user_profile.total_volume += amount;
+
+        msg!("Added {} to prediction on market {}", amount, market.market_id);
         Ok(())
     }
 
@@ -487,6 +515,37 @@ pub struct MakePrediction<'info> {
     
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct AddToPrediction<'info> {
+    #[account(
+        mut,
+        seeds = [b"prediction", user.key().as_ref(), market.key().as_ref()],
+        bump = prediction.bump
+    )]
+    pub prediction: Account<'info, Prediction>,
+
+    #[account(mut)]
+    pub market: Account<'info, Market>,
+
+    #[account(
+        mut,
+        seeds = [b"profile", user.key().as_ref()],
+        bump = user_profile.bump
+    )]
+    pub user_profile: Account<'info, UserProfile>,
+
+    #[account(mut)]
+    pub user: Signer<'info>,
+
+    #[account(mut)]
+    pub user_token_account: Account<'info, TokenAccount>,
+
+    #[account(mut)]
+    pub market_vault: Account<'info, TokenAccount>,
+
+    pub token_program: Program<'info, Token>,
 }
 
 #[derive(Accounts)]
