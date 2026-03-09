@@ -48,6 +48,17 @@ const MARKETS = [
   { id: 23, question: "Will US inflation fall below 2% in 2026?",           category: "Finance", yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "finance",gradient: "linear-gradient(135deg,#0a1a0a,#0a2d1a,#0a0a3e)" },
   { id: 24, question: "Will Tesla stock hit $500 in 2026?",                  category: "Finance", yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "finance",gradient: "linear-gradient(135deg,#1a1a0a,#2d2a0a,#0a1a3e)" },
   { id: 25, question: "Will a commercial fusion reactor go online by 2030?", category: "Science", yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "planet", gradient: "linear-gradient(135deg,#0a0a1a,#1a0a2d,#1a1a0a)" },
+  // Batch 3 — Mar 2026
+  { id: 26, question: "Will Arsenal win the Premier League 2025/26?",             category: "Sports",   yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "sports",  gradient: "linear-gradient(135deg,#2e0a0a,#3d0a0a,#1a0a2e)" },
+  { id: 27, question: "Will Real Madrid win the Champions League 2026?",          category: "Sports",   yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "sports",  gradient: "linear-gradient(135deg,#1a1a0a,#2d2a00,#0a1a2e)" },
+  { id: 28, question: "Will Lewis Hamilton win a race for Ferrari in 2026?",      category: "Sports",   yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "sports",  gradient: "linear-gradient(135deg,#2e0a0a,#1a0a0a,#1a0a2e)" },
+  { id: 29, question: "Will the US establish a Bitcoin Strategic Reserve in 2026?", category: "Politics", yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "finance", gradient: "linear-gradient(135deg,#0a0a2e,#1a1a3d,#0a1a1a)" },
+  { id: 30, question: "Will total crypto market cap exceed $5 trillion in 2026?", category: "Crypto",   yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "btc",    gradient: "linear-gradient(135deg,#0a1a0a,#1a2d1a,#0a0a3e)" },
+  { id: 31, question: "Will there be a Ukraine ceasefire before end of 2026?",    category: "Politics", yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "finance", gradient: "linear-gradient(135deg,#0a0a1a,#1a1a2d,#1a0a0a)" },
+  { id: 32, question: "Will Elon Musk launch a political party by 2027?",         category: "Politics", yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "finance", gradient: "linear-gradient(135deg,#1a1a1a,#2d2d2d,#0a1a3e)" },
+  { id: 33, question: "Will Claude AI surpass ChatGPT in monthly users by 2027?", category: "AI",       yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "ai",     gradient: "linear-gradient(135deg,#0a1a1a,#0a2d2d,#1a0a3e)" },
+  { id: 34, question: "Will Cardano (ADA) hit $5 before end of 2026?",            category: "Crypto",   yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "btc",    gradient: "linear-gradient(135deg,#0a0a2e,#0a1a4e,#0a1a3e)" },
+  { id: 35, question: "Will a global recession be declared in 2026?",             category: "Finance",  yesPercent: 50, volume: "0 OCT", volumeNum: 0, ends: "—", participants: 0, icon: "finance", gradient: "linear-gradient(135deg,#1a0a1a,#2d0a2d,#0a1a2e)" },
 ];
 
 const TRENDING = [MARKETS[0], MARKETS[1], MARKETS[2]]; // replaced by enriched.slice(0,3) in MarketsPage
@@ -92,6 +103,17 @@ const MARKET_ADDRESSES: Record<string, string> = {
   '23': '7X3MsG8s6nkeStK1s9roTkumReD9Hd6dFqAyVDFnYYfi',
   '24': 'DJxffSiVTrNb8PEmtXn524tcBRyQgSsnrNurW4nW482B',
   '25': 'CnhqSvCjrF1yySDZy6DSATMyE1SJtucabhDmxXgExqoM',
+  // Batch 3 — Mar 2026
+  '26': 'FMuf4tSBC94Fr3BhSy6ga4FXDguK2xk2PBrmhdbAXgWL',
+  '27': '8ek5kvUGAUaAM6Sr6xJbDxf1Kw86S4YJ7r5SVBJppURK',
+  '28': 'HtNiAsP3jo45qq3Tj7vpkCRBYeTU7dDtg9S8G2Mw3bEp',
+  '29': '9D5FPJjmRpWm12tsAe8RfjFbdGefj9UxgdRQkj3LZonb',
+  '30': '52CrKVyqGXxVrNSkYU8AyNXGgcrnYE3m63ffAiWrbjU9',
+  '31': '59DQYBsJX22vFEA7z2soT5i4SmkaF4gFTzLUKse5683p',
+  '32': 'GxACLduSPRETewhkiFnjK3MWvKtPjdKhwhj33MUrhYtA',
+  '33': 'ErRPpxhBdnXZk2xwSEbFYDDsx9MTbXdxNexXKUcWVJjV',
+  '34': 'E5b4kE3JyexTUboLimJcS13A4UpwNKcN7g5fB6snfPYd',
+  '35': '7ihfKMprnATSsRnujMsLXJ9zKymKVtxzzoqGzNb2nuJM',
 };
 
 const ACTIVITY_FEED = [
@@ -1205,6 +1227,7 @@ const ClaimRewardsTab: FC<{ onBalanceRefresh: () => void }> = ({ onBalanceRefres
   const [loading, setLoading] = useState(false);
   const [claimStatus, setClaimStatus] = useState<Record<string, 'idle'|'loading'|'claimed'|'error'>>({});
   const [claimTx, setClaimTx] = useState<Record<string, string>>({});
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     if (!publicKey) { setPreds([]); return; }
@@ -1239,7 +1262,7 @@ const ClaimRewardsTab: FC<{ onBalanceRefresh: () => void }> = ({ onBalanceRefres
       } catch (e) { console.error(e); }
       finally { setLoading(false); }
     })();
-  }, [publicKey, connection]);
+  }, [publicKey, connection, refreshKey]);
 
   const handleClaim = async (pred: OnChainPred) => {
     if (!publicKey) return;
@@ -1299,6 +1322,9 @@ const ClaimRewardsTab: FC<{ onBalanceRefresh: () => void }> = ({ onBalanceRefres
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <button onClick={() => setRefreshKey(k => k + 1)} style={{ padding: '6px 14px', background: 'rgba(139,92,246,.1)', border: '1px solid rgba(139,92,246,.3)', borderRadius: 8, color: 'rgba(139,92,246,.8)', fontSize: 11, cursor: 'pointer', fontFamily: "'Space Grotesk',sans-serif", letterSpacing: 1 }}>↻ Refresh</button>
+      </div>
       {winners.length > 0 && (
         <div style={{ background: 'rgba(13,13,43,.6)', border: '1px solid rgba(16,185,129,.2)', borderRadius: 14, overflow: 'hidden' }}>
           <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,.06)', background: 'rgba(16,185,129,.05)', fontSize: 11, color: 'rgba(16,185,129,.7)', letterSpacing: 2, textTransform: 'uppercase' as const }}>Winning predictions — {winners.length} claimable</div>
