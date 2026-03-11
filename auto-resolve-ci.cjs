@@ -39,7 +39,7 @@ const PYTH_FEED_IDS = {
   sol:  'ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d',
   eth:  'ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace',
   gold: '765d2ba906dbc32ca17cc11f5310a89e9ee1f6420508c63861f2f8ba4ee34bb2',
-  xrp:  'ec5d399b169a74b5e30fc7de30abb26cbabb50c4d3e79e35b4c5adb0acf96f5b',
+  xrp:  'bfaf7739cb6fe3e1c57a0ac08e1d931e9e6062d476fa57804e165ab572b5b621',
   doge: 'dcef50dd0a4cd2dcc17e45df1676dcb336a11a61c69df7a0299b0150c672d25c',
 };
 
@@ -74,15 +74,20 @@ function fetchJson(url, redirectCount = 0) {
 }
 
 async function fetchPythPrices() {
-  const ids = Object.values(PYTH_FEED_IDS);
-  const url = `https://hermes.pyth.network/v2/updates/price/latest?${ids.map(id => `ids[]=${id}`).join('&')}`;
-  console.log('Fetching Pyth URL:', url.slice(0, 120) + '...');
-  const data = await fetchJson(url);
   const prices = {};
-  for (const item of (data.parsed || [])) {
-    const entry = Object.entries(PYTH_FEED_IDS).find(([, id]) => id === item.id);
-    if (!entry) continue;
-    prices[entry[0]] = parseFloat(item.price.price) * Math.pow(10, item.price.expo);
+  // Fetch each asset individually so one bad ID doesn't block the rest
+  for (const [key, feedId] of Object.entries(PYTH_FEED_IDS)) {
+    const url = `https://hermes.pyth.network/v2/updates/price/latest?ids[]=${feedId}`;
+    try {
+      const data = await fetchJson(url);
+      for (const item of (data.parsed || [])) {
+        if (item.id === feedId) {
+          prices[key] = parseFloat(item.price.price) * Math.pow(10, item.price.expo);
+        }
+      }
+    } catch(e) {
+      console.warn(`  Warning: could not fetch ${key.toUpperCase()} price — ${e.message}`);
+    }
   }
   return prices;
 }
