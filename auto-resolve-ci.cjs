@@ -3,9 +3,8 @@
  * Reads keypair from SOLANA_KEYPAIR_JSON env var.
  */
 const { Connection, Keypair, PublicKey, Transaction, TransactionInstruction, sendAndConfirmTransaction } = require('@solana/web3.js');
-const fs = require('fs');
-const os = require('os');
 const https = require('https');
+const http = require('http');
 
 const PROGRAM_ID = new PublicKey('HJkUBA1W9Dcd83WC7CiCXpdZRc3iHQy7Pwp355jGWmNj');
 const RPC        = 'https://devnet.helius-rpc.com/?api-key=bb6da2ff-6316-4784-9ef8-53de07864e95';
@@ -44,19 +43,40 @@ const PYTH_FEED_IDS = {
   doge: 'dcef50dd0a4cd2dcc17e45df1676dcb336a11a61c69df7a0299b0150c672d25c',
 };
 
-function fetchJson(url) {
+function fetchJson(url, redirectCount = 0) {
+  if (redirectCount > 5) return Promise.reject(new Error('Too many redirects'));
   return new Promise((resolve, reject) => {
-    https.get(url, { headers: { 'User-Agent': 'OracleToken/1.0' } }, res => {
+    const lib = url.startsWith('https') ? https : http;
+    const req = lib.get(url, { headers: { 'User-Agent': 'OracleToken/1.0', 'Accept': 'application/json' } }, res => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        return fetchJson(res.headers.location, redirectCount + 1).then(resolve).catch(reject);
+      }
+      if (res.statusCode !== 200) {
+        let body = '';
+        res.on('data', d => body += d);
+        res.on('end', () => reject(new Error(`HTTP ${res.statusCode}: ${body.slice(0, 200)}`)));
+        return;
+      }
       let data = '';
       res.on('data', d => data += d);
-      res.on('end', () => { try { resolve(JSON.parse(data)); } catch { reject(new Error('JSON parse failed')); } });
-    }).on('error', reject);
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(data));
+        } catch(e) {
+          console.error('Raw response (first 500 chars):', data.slice(0, 500));
+          reject(new Error('JSON parse failed'));
+        }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(15000, () => { req.destroy(); reject(new Error('Request timeout')); });
   });
 }
 
 async function fetchPythPrices() {
   const ids = Object.values(PYTH_FEED_IDS);
   const url = `https://hermes.pyth.network/v2/updates/price/latest?${ids.map(id => `ids[]=${id}`).join('&')}`;
+  console.log('Fetching Pyth URL:', url.slice(0, 120) + '...');
   const data = await fetchJson(url);
   const prices = {};
   for (const item of (data.parsed || [])) {
