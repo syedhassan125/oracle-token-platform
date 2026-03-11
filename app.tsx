@@ -116,28 +116,6 @@ const MARKET_ADDRESSES: Record<string, string> = {
   '35': '7ihfKMprnATSsRnujMsLXJ9zKymKVtxzzoqGzNb2nuJM',
 };
 
-const ACTIVITY_FEED = [
-  { user: "Alice", action: "bought", amount: "$400", side: "YES", market: "Eth ETF", time: "2m ago", color: "#00d4aa" },
-  { user: "Tom", action: "sold", amount: "$200", side: "NO", market: "Trump 2028", time: "3m ago", color: "#ff6b6b" },
-  { user: "Megan", action: "joined", amount: "", side: "", market: "Solana $500", time: "5m ago", color: "#a78bfa" },
-  { user: "CryptoKing", action: "bought", amount: "$1,200", side: "YES", market: "BTC $150K", time: "7m ago", color: "#00d4aa" },
-  { user: "DeFiDude", action: "bought", amount: "$600", side: "NO", market: "Fed rates", time: "9m ago", color: "#ff6b6b" },
-  { user: "MoonGirl", action: "bought", amount: "$850", side: "YES", market: "Apple AR", time: "11m ago", color: "#00d4aa" },
-];
-
-const ACTIVE_BETS = [
-  { id: 1, market: "Bitcoin to $150K?", category: "Crypto", side: "Yes", amount: 500, potential: 850, odds: 61, ends: "Dec 31, 2026" },
-  { id: 2, market: "Lakers NBA Championship?", category: "Sports", side: "No", amount: 300, potential: 590, odds: 34, ends: "Jun 30, 2026" },
-  { id: 3, market: "Fed cuts rates 3+ times?", category: "Finance", side: "Yes", amount: 750, potential: 1200, odds: 61, ends: "Dec 31, 2026" },
-];
-
-const BET_HISTORY = [
-  { id: 1, market: "Trump wins 2024 election?", category: "Politics", side: "Yes", amount: 1000, result: "Won", payout: 1850, date: "Nov 6, 2024", profit: 850 },
-  { id: 2, market: "ETH reaches $5K in 2024?", category: "Crypto", side: "Yes", amount: 500, result: "Lost", payout: 0, date: "Dec 31, 2024", profit: -500 },
-  { id: 3, market: "Fed rate cut Sept 2024?", category: "Finance", side: "Yes", amount: 800, result: "Won", payout: 1440, date: "Sep 18, 2024", profit: 640 },
-  { id: 4, market: "Bitcoin ETF approved?", category: "Crypto", side: "Yes", amount: 1500, result: "Won", payout: 2100, date: "Jan 10, 2024", profit: 600 },
-  { id: 5, market: "Nvidia +50% in 2024?", category: "Finance", side: "Yes", amount: 600, result: "Won", payout: 1080, date: "Dec 20, 2024", profit: 480 },
-];
 
 
 // ─── Pyth Price Feeds ─────────────────────────────────────────────────────────
@@ -235,6 +213,18 @@ const GLOBAL_CSS = `
   ::-webkit-scrollbar{width:4px}
   ::-webkit-scrollbar-track{background:rgba(255,255,255,.03)}
   ::-webkit-scrollbar-thumb{background:rgba(139,92,246,.4);border-radius:2px}
+  @media(max-width:900px){
+    .grid-4{grid-template-columns:repeat(2,1fr)!important}
+    .grid-3{grid-template-columns:repeat(2,1fr)!important}
+    .bottom-row{grid-template-columns:1fr!important}
+    .nav-center{display:none!important}
+    .stats-grid{grid-template-columns:repeat(2,1fr)!important}
+  }
+  @media(max-width:600px){
+    .grid-4{grid-template-columns:1fr!important}
+    .grid-3{grid-template-columns:1fr!important}
+    .stats-grid{grid-template-columns:1fr!important}
+  }
 `;
 
 // ─── Splash ───────────────────────────────────────────────────────────────────
@@ -828,11 +818,9 @@ const CreateMarketPage: FC = () => {
 // ─── Markets Home ─────────────────────────────────────────────────────────────
 const MarketsPage: FC<{ connected: boolean; globalLiveData: Record<string,{ yesPercent:number; volume:string; totalVolume:number; resolutionTimestamp:number; title:string; resolved:boolean }> }> = ({ connected, globalLiveData }) => {
   const [cat, setCat] = useState('All');
-  const [tick, setTick] = useState(0);
+  const [showAll, setShowAll] = useState(false);
   const liveData = globalLiveData;
   const pythPrices = usePythPrices();
-
-  useEffect(()=>{ const i = setInterval(()=>setTick(t=>t+1),5000); return ()=>clearInterval(i); },[]);
 
   const enriched = MARKETS.map(m => {
     const live = liveData[m.id.toString()];
@@ -845,6 +833,8 @@ const MarketsPage: FC<{ connected: boolean; globalLiveData: Record<string,{ yesP
   });
 
   const filtered = cat==='All' ? enriched : enriched.filter(m=>m.category===cat);
+  const visibleMarkets = showAll ? filtered : filtered.slice(0, 12);
+  const trending = [...enriched].sort((a,b) => (b.volumeNum||0) - (a.volumeNum||0)).slice(0,3);
   const { entries: leaderEntries } = useLeaderboardData();
   const actFeed = useRecentActivity();
   const topTraders = leaderEntries.slice(0, 3);
@@ -883,8 +873,8 @@ const MarketsPage: FC<{ connected: boolean; globalLiveData: Record<string,{ yesP
           <div style={{ width:6, height:6, borderRadius:'50%', background:'#f59e0b', boxShadow:'0 0 10px #f59e0b', animation:'pulse 2s ease-in-out infinite' }} />
           <h2 style={{ fontSize:18, fontWeight:700, color:'white', letterSpacing:-.3 }}>Trending Markets</h2>
         </div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14 }}>
-          {enriched.slice(0,3).map((m,i)=>{ const pk=MARKET_PYTH_KEY[m.id]; const pf=pk?PYTH_FEEDS[pk]:undefined; return <MarketCard key={m.id} market={m} featured delay={i} pythPrice={pk?pythPrices[pk]:undefined} pythLabel={pf?.label} pythTarget={pf?.target} />; })}
+        <div className="grid-3" style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14 }}>
+          {trending.map((m,i)=>{ const pk=MARKET_PYTH_KEY[m.id]; const pf=pk?PYTH_FEEDS[pk]:undefined; return <MarketCard key={m.id} market={m} featured delay={i} pythPrice={pk?pythPrices[pk]:undefined} pythLabel={pf?.label} pythTarget={pf?.target} />; })}
         </div>
       </div>
 
@@ -898,12 +888,19 @@ const MarketsPage: FC<{ connected: boolean; globalLiveData: Record<string,{ yesP
       </div>
 
       {/* Markets grid */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:36 }}>
-        {filtered.slice(0,8).map((m,i)=>{ const pk=MARKET_PYTH_KEY[m.id]; const pf=pk?PYTH_FEEDS[pk]:undefined; return <MarketCard key={m.id} market={m} delay={i} pythPrice={pk?pythPrices[pk]:undefined} pythLabel={pf?.label} pythTarget={pf?.target} />; })}
+      <div className="grid-4" style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:16 }}>
+        {visibleMarkets.map((m,i)=>{ const pk=MARKET_PYTH_KEY[m.id]; const pf=pk?PYTH_FEEDS[pk]:undefined; return <MarketCard key={m.id} market={m} delay={i%12} pythPrice={pk?pythPrices[pk]:undefined} pythLabel={pf?.label} pythTarget={pf?.target} />; })}
       </div>
+      {filtered.length > 12 && (
+        <div style={{ textAlign:'center', marginBottom:28 }}>
+          <button onClick={()=>setShowAll(v=>!v)} style={{ padding:'10px 28px', borderRadius:10, border:'1px solid rgba(139,92,246,.35)', background:'rgba(139,92,246,.1)', color:'rgba(139,92,246,.9)', fontSize:13, fontWeight:500, cursor:'pointer', fontFamily:"'Space Grotesk',sans-serif", transition:'all .2s' }}>
+            {showAll ? '↑ Show Less' : `↓ Show All ${filtered.length} Markets`}
+          </button>
+        </div>
+      )}
 
       {/* Bottom row */}
-      <div style={{ display:'grid', gridTemplateColumns:'260px 1fr 300px', gap:14 }}>
+      <div className="bottom-row" style={{ display:'grid', gridTemplateColumns:'260px 1fr 300px', gap:14 }}>
         {/* Top Traders */}
         <div style={{ background:'rgba(13,13,43,.8)', border:'1px solid rgba(139,92,246,.18)', borderRadius:14, padding:18 }}>
           <div style={{ fontSize:13, fontWeight:700, color:'white', marginBottom:14 }}>🏆 Top Traders</div>
@@ -1490,7 +1487,7 @@ const ActivityPage: FC<{ onBalanceRefresh: () => void }> = ({ onBalanceRefresh }
       <div style={{ marginBottom:28 }}>
         <div style={{ fontSize:10, letterSpacing:3, color:'rgba(139,92,246,.7)', textTransform:'uppercase', marginBottom:10 }}>My Activity</div>
         <h1 style={{ fontSize:28, fontWeight:700, color:'white', letterSpacing:-.5, marginBottom:20 }}>Predictions</h1>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
+        <div className="stats-grid" style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
           {[
             { l:'Active Bets', v: loading ? '…' : String(active.length), c:'white' },
             { l:'Total Resolved', v: loading ? '…' : String(history.length), c:'white' },
@@ -1669,7 +1666,7 @@ const AnalyticsPage: FC = () => {
         Analytics <span style={{ color:'rgba(255,255,255,.3)', fontWeight:300 }}>· performance</span>
       </h1>
 
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:24 }}>
+      <div className="stats-grid" style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:24 }}>
         {[
           { l:'Total P&L', v: loading?'…': resolved.length>0?(totalPnl>=0?'+':'')+totalPnl.toFixed(2)+' OCT':'—', c: totalPnl>=0?'#10b981':'#ef4444' },
           { l:'Win Rate', v: loading?'…': resolved.length>0?winRate+'%':'—', c:'#7c3aed' },
@@ -1771,7 +1768,7 @@ const Navbar: FC<{ page:Page; setPage:(p:Page)=>void; octBalance:number; connect
         <span style={{ fontSize:14, fontWeight:700, color:'white', letterSpacing:.5 }}>ORACLE MARKET</span>
       </div>
       {/* Nav */}
-      <nav style={{ display:'flex', gap:4 }}>
+      <nav className="nav-center" style={{ display:'flex', gap:4 }}>
         {([['markets','Markets'],['leaderboard','Leaderboard'],['activity','Activity'],['analytics','Analytics']] as const).map(([p,l])=>(
           <button key={p} onClick={()=>setPage(p)} className={`nav-btn${page===p?' active':''}`} style={{ background:'none', border:'none', padding:'8px 16px', color: page===p?'white':'rgba(255,255,255,.5)', fontSize:14, cursor:'pointer', fontFamily:"'Space Grotesk',sans-serif", fontWeight: page===p?600:400 }}>{l}</button>
         ))}
