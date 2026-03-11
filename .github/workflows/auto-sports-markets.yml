@@ -1,0 +1,42 @@
+name: Auto Sports Markets
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # 6am UTC daily
+  workflow_dispatch:        # allow manual trigger
+
+jobs:
+  create-markets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          npm install @solana/web3.js@1.87.6 @solana/spl-token@0.4.6
+
+      - name: Write Solana keypair
+        run: |
+          echo '${{ secrets.SOLANA_KEYPAIR_JSON }}' > /tmp/solana-id.json
+
+      - name: Run auto-sports-markets
+        env:
+          SOLANA_KEYPAIR_JSON: ${{ secrets.SOLANA_KEYPAIR_JSON }}
+          HOME: /tmp
+        run: |
+          # Override the node_modules path and keypair path for CI
+          node -e "
+            const path = require('path');
+            // Patch module resolution to use CI node_modules
+            const NM = path.join(process.cwd(), 'node_modules');
+            process.env.NM_OVERRIDE = NM;
+            process.env.HOME = '/tmp';
+            // Write keypair file
+            require('fs').mkdirSync('/tmp/.config/solana', { recursive: true });
+            require('fs').writeFileSync('/tmp/.config/solana/id.json', process.env.SOLANA_KEYPAIR_JSON);
+          " || true
+          node auto-sports-markets-ci.cjs

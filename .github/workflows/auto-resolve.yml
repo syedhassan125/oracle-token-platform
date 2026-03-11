@@ -1,0 +1,30 @@
+name: Auto Resolve Markets
+
+on:
+  schedule:
+    - cron: '0 * * * *'   # every hour
+  workflow_dispatch:        # allow manual trigger
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          npm install @solana/web3.js@1.87.6
+
+      - name: Write Solana keypair
+        run: |
+          mkdir -p /tmp/.config/solana
+          echo '${{ secrets.SOLANA_KEYPAIR_JSON }}' > /tmp/.config/solana/id.json
+
+      - name: Run auto-resolve
+        env:
+          SOLANA_KEYPAIR_JSON: ${{ secrets.SOLANA_KEYPAIR_JSON }}
+        run: node auto-resolve-ci.cjs
