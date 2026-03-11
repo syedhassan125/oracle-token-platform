@@ -17,7 +17,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm install @solana/web3.js@1.87.6
+          npm install @solana/web3.js@1.98.4 --legacy-peer-deps
 
       - name: Write Solana keypair
         run: |
